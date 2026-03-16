@@ -22,7 +22,7 @@ const changePassword = async (req, res) => {
     const newUser = await User.findByIdAndUpdate(
       { _id: userId },
       { password: hashedPassword },
-      { new: true }
+      { new: true },
     );
     return res.status(200).json({ success: true, data: newUser });
   } catch (error) {
