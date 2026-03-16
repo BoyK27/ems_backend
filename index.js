@@ -13,12 +13,16 @@ import attendanceRouter from "./routes/attendance.js";
 
 dotenv.config();
 
+// 1. Establish database connection
+connectToDatabase();
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public/uploads"));
 
+// Routes
 app.use("/api/auth", authRouter);
 app.use("/api/department", departmentRouter);
 app.use("/api/employee", employeeRouter);
@@ -28,18 +32,13 @@ app.use("/api/setting", settingRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/dashboard", dashboardRouter);
 
-const startServer = async () => {
-  try {
-    await connectToDatabase();
-    const PORT = process.env.PORT || 5000;
+// 2. Handle the "Listen" logic for local development only
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error("Server startup failed:", error.message);
-    process.exit(1);
-  }
-};
-
-startServer();
+// 3. Export for Vercel
+export default app;
