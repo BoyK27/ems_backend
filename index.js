@@ -18,7 +18,12 @@ connectToDatabase();
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://employee-frontend-blue.vercel.app/",
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(express.static("public/uploads"));
 
