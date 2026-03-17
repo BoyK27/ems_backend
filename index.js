@@ -13,9 +13,6 @@ import attendanceRouter from "./routes/attendance.js";
 
 dotenv.config();
 
-// 1. Establish database connection
-connectToDatabase();
-
 const app = express();
 
 app.use(
@@ -27,6 +24,8 @@ app.use(
 );
 app.use(express.json());
 app.use(express.static("public/uploads"));
+
+connectToDatabase();
 
 // Routes
 app.use("/api/auth", authRouter);
