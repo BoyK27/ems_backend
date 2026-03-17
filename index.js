@@ -37,6 +37,8 @@ app.use("/api/setting", settingRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/dashboard", dashboardRouter);
 
+export default app;
+
 // 2. Handle the "Listen" logic for local development only
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
@@ -44,6 +46,3 @@ if (process.env.NODE_ENV !== "production") {
     console.log(`Server running on port ${PORT}`);
   });
 }
-
-// 3. Export for Vercel
-export default app;
