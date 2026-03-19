@@ -8,6 +8,12 @@ const addLeave = async (req, res) => {
     const { userId, leaveType, startDate, endDate, reason } = req.body;
     const employee = await Employee.findOne({ userId });
 
+    if (!employee) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Employee not found" });
+    }
+
     const newLeave = new Leave({
       employeeId: employee._id,
       leaveType,
@@ -17,7 +23,6 @@ const addLeave = async (req, res) => {
     });
 
     await newLeave.save();
-
     return res.status(200).json({ success: true });
   } catch (error) {
     return res
@@ -26,22 +31,45 @@ const addLeave = async (req, res) => {
   }
 };
 
+// FIXED: Added .populate() here so the frontend can see employeeId.userId.name
 const getLeave = async (req, res) => {
   try {
     const { id, role } = req.params;
     let leaves;
-    if (role === "admin") {
-      leaves = await Leave.find({ employeeId: id });
-    } else {
-      const employee = await Employee.findOne({ userId: id });
 
-      leaves = await Leave.find({ employeeId: employee._id });
+    if (role === "admin") {
+      // Admin might be passing an employee ID to see a specific person's leaves
+      leaves = await Leave.find({ employeeId: id }).populate({
+        path: "employeeId",
+        populate: [
+          { path: "department", select: "dep_name" },
+          { path: "userId", select: "name profileImage" },
+        ],
+      });
+    } else {
+      // For employees, we find by their userId first
+      const employee = await Employee.findOne({ userId: id });
+      if (!employee) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Employee record not found" });
+      }
+
+      leaves = await Leave.find({ employeeId: employee._id }).populate({
+        path: "employeeId",
+        populate: [
+          { path: "department", select: "dep_name" },
+          { path: "userId", select: "name profileImage" },
+        ],
+      });
     }
 
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
-    console.log(error.message);
-    return res.status(500).json({ success: false, error: "Couldn't find" });
+    console.log("Error in getLeave:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, error: "Couldn't find leaves" });
   }
 };
 
@@ -50,14 +78,8 @@ const getLeaves = async (req, res) => {
     const leaves = await Leave.find().populate({
       path: "employeeId",
       populate: [
-        {
-          path: "department",
-          select: "dep_name",
-        },
-        {
-          path: "userId",
-          select: "name",
-        },
+        { path: "department", select: "dep_name" },
+        { path: "userId", select: "name" },
       ],
     });
     return res.status(200).json({ success: true, leaves });
@@ -73,14 +95,8 @@ const getLeaveDetail = async (req, res) => {
     const leave = await Leave.findById(id).populate({
       path: "employeeId",
       populate: [
-        {
-          path: "department",
-          select: "dep_name",
-        },
-        {
-          path: "userId",
-          select: "name profileImage",
-        },
+        { path: "department", select: "dep_name" },
+        { path: "userId", select: "name profileImage" },
       ],
     });
     return res.status(200).json({ success: true, leave });
@@ -93,9 +109,14 @@ const getLeaveDetail = async (req, res) => {
 const updateLeave = async (req, res) => {
   try {
     const { id } = req.params;
-    const leave = await Leave.findByIdAndUpdate(id, {
-      status: req.body.status,
-    });
+    const leave = await Leave.findByIdAndUpdate(
+      id,
+      {
+        status: req.body.status,
+      },
+      { new: true },
+    ); // added {new: true} to get the updated document back
+
     if (!leave) {
       return res.status(404).json({ success: false, error: "Leave not found" });
     }
@@ -104,7 +125,8 @@ const updateLeave = async (req, res) => {
     console.log(error.message);
     return res
       .status(500)
-      .json({ success: false, error: "Couldn't find Leave" });
+      .json({ success: false, error: "Couldn't update Leave" });
   }
 };
+
 export { addLeave, getLeave, getLeaves, getLeaveDetail, updateLeave };
