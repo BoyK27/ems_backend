@@ -1,4 +1,6 @@
 import Department from "../models/Department.js";
+import Employee from "../models/Employee.js";
+import User from "../models/User.js";
 
 const getDepartments = async (req, res) => {
   try {
@@ -54,7 +56,7 @@ const updateDepartment = async (req, res) => {
       {
         dep_name,
         description,
-      }
+      },
     );
     return res.status(200).json({ success: true, updateDep });
   } catch (error) {
@@ -63,6 +65,7 @@ const updateDepartment = async (req, res) => {
       .json({ success: false, error: "edit department server error" });
   }
 };
+/*
 const deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -73,6 +76,44 @@ const deleteDepartment = async (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "edit department server error" });
+  }
+};
+
+*/
+
+const deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const employees = await Employee.find({ department: id });
+
+    const userIds = employees.map((emp) => emp.userId);
+
+    if (userIds.length > 0) {
+      await User.deleteMany({ _id: { $in: userIds } });
+    }
+
+    await Employee.deleteMany({ department: id });
+
+    const deletedDep = await Department.findByIdAndDelete({ _id: id });
+
+    if (!deletedDep) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Department not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Department and all associated employees deleted successfully",
+      deletedDep,
+    });
+  } catch (error) {
+    console.error("Delete Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Delete department server error",
+    });
   }
 };
 export { getDepartments, getDepartment, updateDepartment, deleteDepartment };
