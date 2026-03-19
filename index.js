@@ -17,7 +17,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "https://employee-frontend-blue.vercel.app",
+    origin: "https://mhub-orchard.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   }),
