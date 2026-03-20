@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import mongoose from "mongoose";
 
 const login = async (req, res) => {
   try {
@@ -25,7 +26,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       { _id: user._id, role: user.role },
       process.env.JWT_KEY,
-      { expiresIn: "10d" }
+      { expiresIn: "10d" },
     );
 
     return res.status(200).json({

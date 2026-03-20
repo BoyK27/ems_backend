@@ -28,7 +28,7 @@ const addSalary = async (req, res) => {
       .json({ success: false, error: "Salary add server error" });
   }
 };
-/*
+
 const getSalary = async (req, res) => {
   try {
     const { id, role } = req.params;
@@ -36,13 +36,13 @@ const getSalary = async (req, res) => {
     if (role === "admin") {
       salary = await Salary.find({ employeeId: id }).populate(
         "employeeId",
-        "employeeId"
+        "employeeId",
       );
     } else {
       const employee = await Employee.findOne({ userId: id });
       salary = await Salary.find({ employeeId: employee._id }).populate(
         "employeeId",
-        "employeeId"
+        "employeeId",
       );
     }
     return res.status(200).json({ success: true, salary });
@@ -52,10 +52,9 @@ const getSalary = async (req, res) => {
       .json({ success: false, error: "Slary get server error" });
   }
 };
-*/
 
 // ... (addSalary function remains the same)
-
+/*
 const getSalary = async (req, res) => {
   try {
     const { id: userId } = req.params;
@@ -88,5 +87,5 @@ const getSalary = async (req, res) => {
       .json({ success: false, error: "Salary get server error" });
   }
 };
-
+*/
 export { addSalary, getSalary };

@@ -2,6 +2,7 @@ import Leave from "../models/Leave.js";
 import Employee from "../models/Employee.js";
 import User from "../models/User.js";
 import Department from "../models/Department.js";
+import mongoose from "mongoose";
 
 const addLeave = async (req, res) => {
   try {

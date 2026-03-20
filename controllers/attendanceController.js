@@ -1,5 +1,6 @@
 import Attendance from "../models/Attendance.js";
 import Employee from "../models/Employee.js";
+import mongoose from "mongoose";
 
 const getAttendance = async (req, res) => {
   try {
