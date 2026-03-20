@@ -33,6 +33,7 @@ const getAttendance = async (req, res) => {
   }
 };
 
+/*
 const updateAttendance = async (req, res) => {
   try {
     const { employeeId } = req.params;
@@ -51,7 +52,33 @@ const updateAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+*/
 
+const updateAttendance = async (req, res) => {
+  try {
+    const { employeeId } = req.params; // This will now be the MongoDB _id
+    const { status } = req.body;
+    const date = new Date().toISOString().split("T")[0];
+
+    // Search directly using the MongoDB ID
+    const attendanceRecord = await Attendance.findOneAndUpdate(
+      { employeeId: employeeId, date },
+      { status },
+      { new: true },
+    );
+
+    if (!attendanceRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "Attendance record not found for today",
+      });
+    }
+
+    res.status(200).json({ success: true, attendanceRecord });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 const attenddanceReport = async (req, res) => {
   try {
     const { date, limit = 5, skip = 0 } = req.query;
