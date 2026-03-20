@@ -23,10 +23,10 @@ const getAttendance = async (req, res) => {
       populate: ["department", "userId"],
     });
 
-    // THIS IS THE FIX: Filter out records where employeeId is null
-    const validAttendance = attendance.filter((att) => att.employeeId !== null);
+    // FILTER out any attendance records where the employee doesn't exist anymore
+    const filteredData = attendance.filter((item) => item.employeeId !== null);
 
-    res.status(200).json({ success: true, attendance: validAttendance });
+    res.status(200).json({ success: true, attendance: filteredData });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
