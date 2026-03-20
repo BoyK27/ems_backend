@@ -1,11 +1,11 @@
 import Leave from "../models/Leave.js";
 import Employee from "../models/Employee.js";
-import User from "../models/User.js";
-import Department from "../models/Department.js";
 
 const addLeave = async (req, res) => {
   try {
     const { userId, leaveType, startDate, endDate, reason } = req.body;
+
+    // Find the actual Employee document ID using the User's ID
     const employee = await Employee.findOne({ userId });
 
     if (!employee) {
@@ -31,14 +31,13 @@ const addLeave = async (req, res) => {
   }
 };
 
-// FIXED: Added .populate() here so the frontend can see employeeId.userId.name
 const getLeave = async (req, res) => {
   try {
     const { id, role } = req.params;
     let leaves;
 
     if (role === "admin") {
-      // Admin might be passing an employee ID to see a specific person's leaves
+      // If Admin is viewing a specific employee's leaves
       leaves = await Leave.find({ employeeId: id }).populate({
         path: "employeeId",
         populate: [
@@ -47,7 +46,7 @@ const getLeave = async (req, res) => {
         ],
       });
     } else {
-      // For employees, we find by their userId first
+      // For the Employee's own dashboard
       const employee = await Employee.findOne({ userId: id });
       if (!employee) {
         return res
@@ -66,15 +65,13 @@ const getLeave = async (req, res) => {
 
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
-    console.log("Error in getLeave:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Couldn't find leaves" });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
 const getLeaves = async (req, res) => {
   try {
+    // Used by Admin to see EVERYONE'S leaves
     const leaves = await Leave.find().populate({
       path: "employeeId",
       populate: [
@@ -84,8 +81,9 @@ const getLeaves = async (req, res) => {
     });
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ success: false, error: "Couldn't find" });
+    return res
+      .status(500)
+      .json({ success: false, error: "Fetch leaves error" });
   }
 };
 
@@ -101,31 +99,27 @@ const getLeaveDetail = async (req, res) => {
     });
     return res.status(200).json({ success: true, leave });
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ success: false, error: "Couldn't find" });
+    return res
+      .status(500)
+      .json({ success: false, error: "Leave detail error" });
   }
 };
 
 const updateLeave = async (req, res) => {
   try {
     const { id } = req.params;
-    const leave = await Leave.findByIdAndUpdate(
-      id,
-      {
-        status: req.body.status,
-      },
-      { new: true },
-    ); // added {new: true} to get the updated document back
+    const leave = await Leave.findByIdAndUpdate(id, {
+      status: req.body.status,
+    });
 
     if (!leave) {
       return res.status(404).json({ success: false, error: "Leave not found" });
     }
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.log(error.message);
     return res
       .status(500)
-      .json({ success: false, error: "Couldn't update Leave" });
+      .json({ success: false, error: "Update leave error" });
   }
 };
 
