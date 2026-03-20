@@ -28,7 +28,7 @@ const addSalary = async (req, res) => {
       .json({ success: false, error: "Salary add server error" });
   }
 };
-
+/*
 const getSalary = async (req, res) => {
   try {
     const { id, role } = req.params;
@@ -52,8 +52,7 @@ const getSalary = async (req, res) => {
       .json({ success: false, error: "Slary get server error" });
   }
 };
-
-/*
+*/
 
 // ... (addSalary function remains the same)
 
@@ -89,7 +88,5 @@ const getSalary = async (req, res) => {
       .json({ success: false, error: "Salary get server error" });
   }
 };
-
-*/
 
 export { addSalary, getSalary };
