@@ -2,6 +2,7 @@ import Attendance from "../models/Attendance.js";
 import Employee from "../models/Employee.js";
 import mongoose from "mongoose";
 
+/*
 const getAttendance = async (req, res) => {
   try {
     const date = new Date().toISOString().split("T")[0];
@@ -10,6 +11,23 @@ const getAttendance = async (req, res) => {
       populate: ["department", "userId"],
     });
     res.status(200).json({ success: true, attendance });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+*/
+const getAttendance = async (req, res) => {
+  try {
+    const date = new Date().toISOString().split("T")[0];
+    const attendance = await Attendance.find({ date }).populate({
+      path: "employeeId",
+      populate: ["department", "userId"],
+    });
+
+    // FIX: Filter out attendance records where the employee was deleted
+    const validAttendance = attendance.filter((att) => att.employeeId !== null);
+
+    res.status(200).json({ success: true, attendance: validAttendance });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
