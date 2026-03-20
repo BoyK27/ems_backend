@@ -1,18 +1,12 @@
 import Leave from "../models/Leave.js";
 import Employee from "../models/Employee.js";
+import User from "../models/User.js";
+import Department from "../models/Department.js";
 
 const addLeave = async (req, res) => {
   try {
     const { userId, leaveType, startDate, endDate, reason } = req.body;
-
-    // Find the actual Employee document ID using the User's ID
     const employee = await Employee.findOne({ userId });
-
-    if (!employee) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Employee not found" });
-    }
 
     const newLeave = new Leave({
       employeeId: employee._id,
@@ -23,6 +17,7 @@ const addLeave = async (req, res) => {
     });
 
     await newLeave.save();
+
     return res.status(200).json({ success: true });
   } catch (error) {
     return res
@@ -35,55 +30,40 @@ const getLeave = async (req, res) => {
   try {
     const { id, role } = req.params;
     let leaves;
-
     if (role === "admin") {
-      // If Admin is viewing a specific employee's leaves
-      leaves = await Leave.find({ employeeId: id }).populate({
-        path: "employeeId",
-        populate: [
-          { path: "department", select: "dep_name" },
-          { path: "userId", select: "name profileImage" },
-        ],
-      });
+      leaves = await Leave.find({ employeeId: id });
     } else {
-      // For the Employee's own dashboard
       const employee = await Employee.findOne({ userId: id });
-      if (!employee) {
-        return res
-          .status(404)
-          .json({ success: false, error: "Employee record not found" });
-      }
 
-      leaves = await Leave.find({ employeeId: employee._id }).populate({
-        path: "employeeId",
-        populate: [
-          { path: "department", select: "dep_name" },
-          { path: "userId", select: "name profileImage" },
-        ],
-      });
+      leaves = await Leave.find({ employeeId: employee._id });
     }
 
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    console.log(error.message);
+    return res.status(500).json({ success: false, error: "Couldn't find" });
   }
 };
 
 const getLeaves = async (req, res) => {
   try {
-    // Used by Admin to see EVERYONE'S leaves
     const leaves = await Leave.find().populate({
       path: "employeeId",
       populate: [
-        { path: "department", select: "dep_name" },
-        { path: "userId", select: "name" },
+        {
+          path: "department",
+          select: "dep_name",
+        },
+        {
+          path: "userId",
+          select: "name",
+        },
       ],
     });
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, error: "Fetch leaves error" });
+    console.log(error);
+    return res.status(500).json({ success: false, error: "Couldn't find" });
   }
 };
 
@@ -93,15 +73,20 @@ const getLeaveDetail = async (req, res) => {
     const leave = await Leave.findById(id).populate({
       path: "employeeId",
       populate: [
-        { path: "department", select: "dep_name" },
-        { path: "userId", select: "name profileImage" },
+        {
+          path: "department",
+          select: "dep_name",
+        },
+        {
+          path: "userId",
+          select: "name profileImage",
+        },
       ],
     });
     return res.status(200).json({ success: true, leave });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, error: "Leave detail error" });
+    console.log(error);
+    return res.status(500).json({ success: false, error: "Couldn't find" });
   }
 };
 
@@ -111,16 +96,15 @@ const updateLeave = async (req, res) => {
     const leave = await Leave.findByIdAndUpdate(id, {
       status: req.body.status,
     });
-
     if (!leave) {
       return res.status(404).json({ success: false, error: "Leave not found" });
     }
     return res.status(200).json({ success: true });
   } catch (error) {
+    console.log(error.message);
     return res
       .status(500)
-      .json({ success: false, error: "Update leave error" });
+      .json({ success: false, error: "Couldn't find Leave" });
   }
 };
-
 export { addLeave, getLeave, getLeaves, getLeaveDetail, updateLeave };

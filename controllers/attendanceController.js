@@ -32,7 +32,7 @@ const updateAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-/*
+
 const attenddanceReport = async (req, res) => {
   try {
     const { date, limit = 5, skip = 0 } = req.query;
@@ -65,52 +65,6 @@ const attenddanceReport = async (req, res) => {
     }, {});
     return res.status(201).json({ success: true, groupData });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-*/
-const attenddanceReport = async (req, res) => {
-  try {
-    const { date, limit = 5, skip = 0 } = req.query;
-    const query = {};
-
-    if (date) {
-      query.date = date;
-    }
-
-    const attendanceData = await Attendance.find(query)
-      .populate({
-        path: "employeeId",
-        populate: ["department", "userId"],
-      })
-      .sort({ date: -1 })
-      .skip(parseInt(skip))
-      .limit(parseInt(limit));
-
-    const groupData = attendanceData.reduce((result, record) => {
-      // 1. Check if employeeId exists to avoid "Cannot read properties of null"
-      if (!record.employeeId) return result;
-
-      if (!result[record.date]) {
-        result[record.date] = [];
-      }
-
-      result[record.date].push({
-        // 2. Use Optional Chaining (?.) for deep nested objects
-        employeeId: record.employeeId?.employeeId || "N/A",
-        employeeName: record.employeeId?.userId?.name || "Deleted User",
-        departmentName: record.employeeId?.department?.dep_name || "No Dept",
-        status: record.status || "Not Marked",
-      });
-      return result;
-    }, {});
-
-    // Changed status code to 200 (201 is usually for 'Created')
-    return res.status(200).json({ success: true, groupData });
-  } catch (error) {
-    // console.error is vital for Vercel logs!
-    console.error("Attendance Report Error:", error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
