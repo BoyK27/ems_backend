@@ -17,7 +17,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "https://mhub-orchard.vercel.app",
+    origin: "https://m-ochard.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   }),
