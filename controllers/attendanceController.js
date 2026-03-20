@@ -18,15 +18,23 @@ const getAttendance = async (req, res) => {
 const getAttendance = async (req, res) => {
   try {
     const date = new Date().toISOString().split("T")[0];
-    const attendance = await Attendance.find({ date }).populate({
+    const attendance = await Attendance.find({ date });
+
+    // LOG THIS: See if the IDs actually exist in your DB
+    console.log(
+      "Raw Attendance IDs:",
+      attendance.map((a) => a.employeeId),
+    );
+
+    const populated = await Attendance.find({ date }).populate({
       path: "employeeId",
       populate: ["department", "userId"],
     });
 
-    // FILTER: Only send records that have an active employee attached
-    const validAttendance = attendance.filter((att) => att.employeeId !== null);
+    // Only send records that successfully populated
+    const validData = populated.filter((att) => att.employeeId !== null);
 
-    res.status(200).json({ success: true, attendance: validAttendance });
+    res.status(200).json({ success: true, attendance: validData });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
