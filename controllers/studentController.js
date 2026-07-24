@@ -146,7 +146,19 @@ const getStudent = async (req, res) => {
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, department, gender, form, stream, dob } = req.body;
+    const {
+      name,
+      department,
+      gender,
+      dob,
+      // Map both variations (matricule/studentId, level/form, program/stream)
+      matricule,
+      studentId,
+      level,
+      form,
+      program,
+      stream,
+    } = req.body;
 
     const student = await Student.findById(id);
     if (!student) {
@@ -155,15 +167,30 @@ const updateStudent = async (req, res) => {
         .json({ success: false, error: "Student not found" });
     }
 
-    // Update linked User name
-    await User.findByIdAndUpdate(student.userId, { name });
+    // 1. Update linked User account name
+    if (name) {
+      await User.findByIdAndUpdate(student.userId, { name });
+    }
 
-    // Update Student attributes
+    // 2. Prepare payload for Student update
+    const updateData = {
+      department,
+      gender,
+      dob,
+      studentId: studentId || matricule || student.studentId,
+      level: level || form || student.level,
+      form: form || level || student.form,
+      program: program || stream || student.program,
+      stream: stream || program || student.stream,
+    };
+
     const updatedStudent = await Student.findByIdAndUpdate(
       id,
-      { department, gender, form, stream, dob },
+      { $set: updateData },
       { new: true },
-    );
+    )
+      .populate({ path: "userId", select: "-password" })
+      .populate("department", "dep_name");
 
     return res.status(200).json({
       success: true,
