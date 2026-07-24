@@ -14,6 +14,8 @@ router.post("/update", authMiddleware, updateStudentAttendance);
 router.post("/batch-update", authMiddleware, batchUpdateStudentAttendance);
 router.get("/date", authMiddleware, getStudentAttendanceByDate);
 router.get("/report", authMiddleware, getDepartmentAttendanceReport);
-router.get("/:id", authMiddleware, getStudentAttendanceHistory);
+
+// Update route path slightly to prevent any potential param capture
+router.get("/history/:id", authMiddleware, getStudentAttendanceHistory);
 
 export default router;
