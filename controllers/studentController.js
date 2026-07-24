@@ -4,7 +4,27 @@ import Department from "../models/Department.js";
 import StudentLeave from "../models/StudentLeave.js";
 import Attendance from "../models/Attendance.js";
 import bcrypt from "bcrypt";
-import path from "path";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+
+// --- Cloudinary Configuration ---
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUD_API_KEY,
+  api_secret: process.env.CLOUD_API_SECRET,
+});
+
+// --- Cloudinary Storage Engine ---
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "student_ms_uploads", // Cloudinary folder name
+    allowed_formats: ["jpg", "png", "jpeg"],
+  },
+});
+
+const upload = multer({ storage: storage });
 
 // 1. Add New Student
 const addStudent = async (req, res) => {
@@ -15,9 +35,11 @@ const addStudent = async (req, res) => {
       studentId,
       dob,
       gender,
-      maritalStatus,
+      form,
+      stream,
       department,
       password,
+      role,
     } = req.body;
 
     // Check if user already exists
@@ -40,13 +62,13 @@ const addStudent = async (req, res) => {
     // Hash Password
     const hashPassword = await bcrypt.hash(password, 10);
 
-    // Save User Account
+    // Save User Account (req.file.path contains the Cloudinary image URL)
     const newUser = new User({
       name,
       email,
       password: hashPassword,
-      role: "student",
-      profileImage: req.file ? req.file.filename : "",
+      role: role || "student",
+      profileImage: req.file ? req.file.path : "",
     });
     const savedUser = await newUser.save();
 
@@ -56,7 +78,8 @@ const addStudent = async (req, res) => {
       studentId,
       dob,
       gender,
-      maritalStatus,
+      form,
+      stream,
       department,
     });
     await newStudent.save();
@@ -66,9 +89,10 @@ const addStudent = async (req, res) => {
       .json({ success: true, message: "Student created successfully" });
   } catch (error) {
     console.error("Error adding student:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Server error creating student" });
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Server error creating student",
+    });
   }
 };
 
@@ -122,7 +146,7 @@ const getStudent = async (req, res) => {
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, department, gender, maritalStatus, dob } = req.body;
+    const { name, department, gender, form, stream, dob } = req.body;
 
     const student = await Student.findById(id);
     if (!student) {
@@ -137,7 +161,7 @@ const updateStudent = async (req, res) => {
     // Update Student attributes
     const updatedStudent = await Student.findByIdAndUpdate(
       id,
-      { department, gender, maritalStatus, dob },
+      { department, gender, form, stream, dob },
       { new: true },
     );
 
@@ -202,6 +226,7 @@ const fetchStudentsByDepartment = async (req, res) => {
 };
 
 export {
+  upload,
   addStudent,
   getStudents,
   getStudent,

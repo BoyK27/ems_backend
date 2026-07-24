@@ -1,19 +1,18 @@
 import express from "express";
 import authMiddleware from "../middleware/authmiddleware.js";
 import {
+  upload,
   addStudent,
   getStudents,
   getStudent,
   updateStudent,
   deleteStudent,
-  fetchStudentsByDepartment,
 } from "../controllers/studentController.js";
 
 const router = express.Router();
 
-router.post("/add", authMiddleware, addStudent);
 router.get("/", authMiddleware, getStudents);
-router.get("/department/:id", authMiddleware, fetchStudentsByDepartment);
+router.post("/add", authMiddleware, upload.single("image"), addStudent);
 router.get("/:id", authMiddleware, getStudent);
 router.put("/:id", authMiddleware, updateStudent);
 router.delete("/:id", authMiddleware, deleteStudent);
