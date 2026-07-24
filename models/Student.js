@@ -22,6 +22,12 @@ const studentSchema = new Schema(
     maritalStatus: {
       type: String,
     },
+    level: {
+      type: String, // e.g. "100", "200", "300", "400"
+    },
+    program: {
+      type: String, // e.g. "Software Engineering"
+    },
     department: {
       type: Schema.Types.ObjectId,
       ref: "Department",

@@ -19,7 +19,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "student_ms_uploads", // Cloudinary folder name
+    folder: "student_ms_uploads",
     allowed_formats: ["jpg", "png", "jpeg"],
   },
 });
@@ -33,9 +33,13 @@ const addStudent = async (req, res) => {
       name,
       email,
       studentId,
+      matricule,
       dob,
       gender,
+      maritalStatus,
+      level,
       form,
+      program,
       stream,
       department,
       password,
@@ -51,18 +55,23 @@ const addStudent = async (req, res) => {
       });
     }
 
+    const finalStudentId = studentId || matricule;
+
     // Check if student ID is unique
-    const existingStudentId = await Student.findOne({ studentId });
+    const existingStudentId = await Student.findOne({
+      studentId: finalStudentId,
+    });
     if (existingStudentId) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Student ID already exists" });
+      return res.status(400).json({
+        success: false,
+        error: "Student ID / Matricule already exists",
+      });
     }
 
     // Hash Password
     const hashPassword = await bcrypt.hash(password, 10);
 
-    // Save User Account (req.file.path contains the Cloudinary image URL)
+    // Save User Account
     const newUser = new User({
       name,
       email,
@@ -72,14 +81,15 @@ const addStudent = async (req, res) => {
     });
     const savedUser = await newUser.save();
 
-    // Save Student Profile
+    // Save Student Profile matching Schema
     const newStudent = new Student({
       userId: savedUser._id,
-      studentId,
+      studentId: finalStudentId,
       dob,
       gender,
-      form,
-      stream,
+      maritalStatus,
+      level: level || form,
+      program: program || stream,
       department,
     });
     await newStudent.save();
@@ -112,7 +122,7 @@ const getStudents = async (req, res) => {
   }
 };
 
-// 3. Get Single Student by ID (Student ID or User ID)
+// 3. Get Single Student by ID (Student Mongo ID or User ID)
 const getStudent = async (req, res) => {
   const { id } = req.params;
   try {
@@ -148,16 +158,16 @@ const updateStudent = async (req, res) => {
     const { id } = req.params;
     const {
       name,
-      department,
-      gender,
-      dob,
-      // Map both variations (matricule/studentId, level/form, program/stream)
       matricule,
       studentId,
       level,
       form,
       program,
       stream,
+      department,
+      gender,
+      dob,
+      maritalStatus,
     } = req.body;
 
     const student = await Student.findById(id);
@@ -167,26 +177,25 @@ const updateStudent = async (req, res) => {
         .json({ success: false, error: "Student not found" });
     }
 
-    // 1. Update linked User account name
+    // 1. Update linked User account name if updated
     if (name) {
       await User.findByIdAndUpdate(student.userId, { name });
     }
 
-    // 2. Prepare payload for Student update
-    const updateData = {
-      department,
-      gender,
-      dob,
+    // 2. Update Student attributes
+    const updatedFields = {
       studentId: studentId || matricule || student.studentId,
       level: level || form || student.level,
-      form: form || level || student.form,
       program: program || stream || student.program,
-      stream: stream || program || student.stream,
+      department: department || student.department,
+      gender: gender || student.gender,
+      dob: dob || student.dob,
+      maritalStatus: maritalStatus || student.maritalStatus,
     };
 
     const updatedStudent = await Student.findByIdAndUpdate(
       id,
-      { $set: updateData },
+      { $set: updatedFields },
       { new: true },
     )
       .populate({ path: "userId", select: "-password" })
