@@ -1,8 +1,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import authRouter from "./routes/auth.js";
 import connectToDatabase from "./db/db.js";
+
+// Existing Routes
+import authRouter from "./routes/auth.js";
 import departmentRouter from "./routes/department.js";
 import employeeRouter from "./routes/employee.js";
 import salaryRouter from "./routes/salary.js";
@@ -10,6 +12,11 @@ import leaveRouter from "./routes/leave.js";
 import settingRouter from "./routes/setting.js";
 import dashboardRouter from "./routes/dashboard.js";
 import attendanceRouter from "./routes/attendance.js";
+
+// New Student Routes
+import studentRouter from "./routes/student.js";
+import studentLeaveRouter from "./routes/studentLeave.js";
+import studentAttendanceRouter from "./routes/studentAttendance.js";
 
 dotenv.config();
 
@@ -27,7 +34,7 @@ app.use(express.static("public/uploads"));
 
 connectToDatabase();
 
-// Routes
+// Existing Routes
 app.use("/api/auth", authRouter);
 app.use("/api/department", departmentRouter);
 app.use("/api/employee", employeeRouter);
@@ -37,9 +44,14 @@ app.use("/api/setting", settingRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/dashboard", dashboardRouter);
 
+// New Student Routes
+app.use("/api/student", studentRouter);
+app.use("/api/student-leave", studentLeaveRouter);
+app.use("/api/student-attendance", studentAttendanceRouter);
+
 export default app;
 
-// 2. Handle the "Listen" logic for local development only
+// Handle the "Listen" logic for local development only
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
