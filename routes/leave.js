@@ -15,6 +15,6 @@ router.get("/detail/:id", authmiddleware, getLeaveDetail);
 
 router.get("/:id/:role", authmiddleware, getLeave);
 router.get("/", authmiddleware, getLeaves);
-router.put("/:id", updateLeave);
+router.put("/:id", authmiddleware, updateLeave);
 
 export default router;
