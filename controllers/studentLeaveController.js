@@ -38,27 +38,32 @@ const addStudentLeave = async (req, res) => {
   }
 };
 
-// 2. Get Leaves for a Single Student (by User ID or Student ID)
+// 2. Get Leaves for a Single Student
 const getStudentLeave = async (req, res) => {
   try {
     const { id, role } = req.params;
     let leaves = [];
 
-    if (role === "admin") {
-      leaves = await StudentLeave.find({ studentId: id }).sort({
-        createdAt: -1,
-      });
-    } else {
-      const student = await Student.findOne({ userId: id });
-      if (!student) {
-        return res
-          .status(404)
-          .json({ success: false, error: "Student profile not found" });
-      }
-      leaves = await StudentLeave.find({ studentId: student._id }).sort({
-        createdAt: -1,
+    // First check if 'id' matches a Student document directly
+    let student = await Student.findById(id);
+
+    // If not found by Student ID, check if 'id' is a User ID linked to a Student
+    if (!student) {
+      student = await Student.findOne({ userId: id });
+    }
+
+    if (!student) {
+      return res.status(200).json({
+        success: true,
+        leaves: [],
+        message: "No student profile found for this ID",
       });
     }
+
+    // Query StudentLeave using the guaranteed Student._id
+    leaves = await StudentLeave.find({ studentId: student._id }).sort({
+      createdAt: -1,
+    });
 
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
