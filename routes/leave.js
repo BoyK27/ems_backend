@@ -12,7 +12,6 @@ const router = express.Router();
 
 router.post("/add", authmiddleware, addLeave);
 router.get("/detail/:id", authmiddleware, getLeaveDetail);
-
 router.get("/:id/:role", authmiddleware, getLeave);
 router.get("/", authmiddleware, getLeaves);
 router.put("/:id", authmiddleware, updateLeave);
