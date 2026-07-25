@@ -1,11 +1,27 @@
 import Attendance from "../models/Attendance.js";
 import Student from "../models/Student.js";
 
-// 1. Mark / Update Attendance for a single student or batch
+// Helper for local YYYY-MM-DD string
+const getLocalDateString = (d = new Date()) => {
+  const dateObj = new Date(d);
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// 1. Mark / Update Attendance for a single student
 const updateStudentAttendance = async (req, res) => {
   try {
     const { studentId, status, date } = req.body;
-    const attendanceDate = date || new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const attendanceDate = date || getLocalDateString();
+
+    if (!studentId || !status) {
+      return res.status(400).json({
+        success: false,
+        error: "Student ID and status are required.",
+      });
+    }
 
     let attendance = await Attendance.findOne({
       studentId,
@@ -16,12 +32,11 @@ const updateStudentAttendance = async (req, res) => {
       attendance.status = status;
       await attendance.save();
     } else {
-      attendance = new Attendance({
+      attendance = await Attendance.create({
         studentId,
         date: attendanceDate,
         status,
       });
-      await attendance.save();
     }
 
     return res.status(200).json({
@@ -38,11 +53,18 @@ const updateStudentAttendance = async (req, res) => {
   }
 };
 
-// 2. Batch Update Student Attendance (e.g., submitting an entire classroom's attendance sheet)
+// 2. Batch Update Student Attendance
 const batchUpdateStudentAttendance = async (req, res) => {
   try {
-    const { date, attendanceData } = req.body; // attendanceData = [{ studentId, status }]
-    const attendanceDate = date || new Date().toISOString().split("T")[0];
+    const { date, attendanceData } = req.body;
+    const attendanceDate = date || getLocalDateString();
+
+    if (!Array.isArray(attendanceData)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid attendance dataset provided.",
+      });
+    }
 
     const bulkOperations = attendanceData.map((item) => ({
       updateOne: {
@@ -52,7 +74,9 @@ const batchUpdateStudentAttendance = async (req, res) => {
       },
     }));
 
-    await Attendance.bulkWrite(bulkOperations);
+    if (bulkOperations.length > 0) {
+      await Attendance.bulkWrite(bulkOperations);
+    }
 
     return res
       .status(200)
@@ -70,13 +94,14 @@ const batchUpdateStudentAttendance = async (req, res) => {
 const getStudentAttendanceByDate = async (req, res) => {
   try {
     const { date } = req.query;
-    const queryDate = date || new Date().toISOString().split("T")[0];
+    const queryDate = date || getLocalDateString();
 
     const attendance = await Attendance.find({
       date: queryDate,
       studentId: { $ne: null },
     }).populate({
       path: "studentId",
+      select: "studentId form stream department userId",
       populate: [
         { path: "userId", select: "name" },
         { path: "department", select: "dep_name" },
@@ -93,10 +118,10 @@ const getStudentAttendanceByDate = async (req, res) => {
   }
 };
 
-// 4. Get Single Student's Attendance History (for Student Dashboard / Attendance tab)
+// 4. Get Single Student's Attendance History
 const getStudentAttendanceHistory = async (req, res) => {
   try {
-    const { id } = req.params; // Can be Student _id or User _id
+    const { id } = req.params;
 
     let student = await Student.findById(id);
     if (!student) {
@@ -113,7 +138,6 @@ const getStudentAttendanceHistory = async (req, res) => {
       date: -1,
     });
 
-    // Calculate Summary Statistics
     const summary = {
       present: records.filter((r) => r.status === "Present").length,
       absent: records.filter((r) => r.status === "Absent").length,
@@ -140,18 +164,20 @@ const getDepartmentAttendanceReport = async (req, res) => {
     const queryFilter = { studentId: { $ne: null } };
     if (date) queryFilter.date = date;
 
-    const rawRecords = await Attendance.find(queryFilter).populate({
-      path: "studentId",
-      populate: [
-        { path: "userId", select: "name" },
-        { path: "department", select: "dep_name" },
-      ],
-    });
+    const rawRecords = await Attendance.find(queryFilter)
+      .sort({ date: -1 })
+      .populate({
+        path: "studentId",
+        select: "studentId form stream department userId",
+        populate: [
+          { path: "userId", select: "name" },
+          { path: "department", select: "dep_name" },
+        ],
+      });
 
-    // Filter by department if supplied
     const filteredRecords = departmentId
       ? rawRecords.filter(
-          (rec) => rec.studentId?.department?._id.toString() === departmentId,
+          (rec) => rec.studentId?.department?._id?.toString() === departmentId,
         )
       : rawRecords;
 
