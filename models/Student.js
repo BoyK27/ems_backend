@@ -19,14 +19,17 @@ const studentSchema = new Schema(
     gender: {
       type: String,
     },
-    maritalStatus: {
-      type: String,
+    form: {
+      type: String, // e.g., "Form 1", "Form 4", "Lower Sixth"
+    },
+    stream: {
+      type: String, // e.g., "Branch A", "Arts", "Science"
     },
     level: {
-      type: String, // e.g. "100", "200", "300", "400"
+      type: String, // e.g., "100", "200", "300"
     },
     program: {
-      type: String, // e.g. "Software Engineering"
+      type: String, // e.g., "Software Engineering"
     },
     department: {
       type: Schema.Types.ObjectId,

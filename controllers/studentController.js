@@ -81,15 +81,17 @@ const addStudent = async (req, res) => {
     });
     const savedUser = await newUser.save();
 
-    // Save Student Profile matching Schema
+    // Save Student Profile matching Schema explicitly
     const newStudent = new Student({
       userId: savedUser._id,
       studentId: finalStudentId,
       dob,
       gender,
       maritalStatus,
-      level: level || form,
-      program: program || stream,
+      form: form || level || "",
+      stream: stream || program || "",
+      level: level || form || "",
+      program: program || stream || "",
       department,
     });
     await newStudent.save();
@@ -177,16 +179,30 @@ const updateStudent = async (req, res) => {
         .json({ success: false, error: "Student not found" });
     }
 
-    // 1. Update linked User account name if updated
+    // 1. Update linked User account name if provided
     if (name) {
       await User.findByIdAndUpdate(student.userId, { name });
     }
 
-    // 2. Update Student attributes
+    // 2. Update Student attributes cleanly
     const updatedFields = {
       studentId: studentId || matricule || student.studentId,
-      level: level || form || student.level,
-      program: program || stream || student.program,
+      form:
+        form !== undefined ? form : level !== undefined ? level : student.form,
+      stream:
+        stream !== undefined
+          ? stream
+          : program !== undefined
+            ? program
+            : student.stream,
+      level:
+        level !== undefined ? level : form !== undefined ? form : student.level,
+      program:
+        program !== undefined
+          ? program
+          : stream !== undefined
+            ? stream
+            : student.program,
       department: department || student.department,
       gender: gender || student.gender,
       dob: dob || student.dob,
