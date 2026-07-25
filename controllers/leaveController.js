@@ -39,13 +39,22 @@ const getLeave = async (req, res) => {
     let leaves = [];
 
     if (role === "admin") {
-      leaves = await Leave.find({ employeeId: id }).sort({ createdAt: -1 });
+      // Admin might pass either Employee ID or User ID depending on route design.
+      // Search for employee by either _id OR userId to prevent failures.
+      let employee = await Employee.findById(id);
+      if (!employee) {
+        employee = await Employee.findOne({ userId: id });
+      }
+
+      const employeeIdToQuery = employee ? employee._id : id;
+      leaves = await Leave.find({ employeeId: employeeIdToQuery }).sort({
+        createdAt: -1,
+      });
     } else {
       const employee = await Employee.findOne({ userId: id });
       if (!employee) {
-        return res
-          .status(404)
-          .json({ success: false, error: "Employee profile not found" });
+        // Return 200 with an empty array so frontend stops loading
+        return res.status(200).json({ success: true, leaves: [] });
       }
       leaves = await Leave.find({ employeeId: employee._id }).sort({
         createdAt: -1,
