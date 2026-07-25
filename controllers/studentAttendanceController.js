@@ -139,14 +139,22 @@ const getStudentAttendanceHistory = async (req, res) => {
     });
 
     const summary = {
-      present: records.filter((r) => r.status === "Present").length,
-      absent: records.filter((r) => r.status === "Absent").length,
-      sick: records.filter((r) => r.status === "Sick").length,
-      leave: records.filter((r) => r.status === "Leave").length,
+      present: records.filter((r) => r.status?.toLowerCase() === "present")
+        .length,
+      absent: records.filter((r) => r.status?.toLowerCase() === "absent")
+        .length,
+      sick: records.filter((r) => r.status?.toLowerCase() === "sick").length,
+      leave: records.filter((r) => r.status?.toLowerCase() === "leave").length,
       total: records.length,
     };
 
-    return res.status(200).json({ success: true, records, summary });
+    // Return both 'records' and 'attendance' key so no client code breaks
+    return res.status(200).json({
+      success: true,
+      records,
+      attendance: records,
+      summary,
+    });
   } catch (error) {
     console.error("Error fetching student attendance history:", error.message);
     return res.status(500).json({
