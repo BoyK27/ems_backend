@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Attendance from "../models/Attendance.js";
 import Student from "../models/Student.js";
 
@@ -123,8 +124,14 @@ const getStudentAttendanceHistory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    let student = await Student.findById(id);
-    if (!student) {
+    // Safety check for valid ObjectId
+    let student = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      student = await Student.findById(id);
+      if (!student) {
+        student = await Student.findOne({ userId: id });
+      }
+    } else {
       student = await Student.findOne({ userId: id });
     }
 
@@ -148,7 +155,7 @@ const getStudentAttendanceHistory = async (req, res) => {
       total: records.length,
     };
 
-    // Return both 'records' and 'attendance' key so no client code breaks
+    // Return both 'records' and 'attendance' for client compatibility
     return res.status(200).json({
       success: true,
       records,
