@@ -11,9 +11,12 @@ const studentLeaveSchema = new Schema(
     leaveType: {
       type: String,
       enum: [
+        "Medical Exemption",
+        "Personal / Family Emergency",
+        "Academic Representation",
+        "Official Permission",
         "Sick Leave",
         "Casual Leave",
-        "Annual Leave",
         "Medical Leave",
         "Exam Permission",
       ],
