@@ -36,24 +36,34 @@ const addLeave = async (req, res) => {
 const getLeave = async (req, res) => {
   try {
     const { id, role } = req.params;
+
+    // 1. Check if ID is literally missing, null, or the string "undefined"
+    if (!id || id === "undefined" || id === "null") {
+      return res.status(200).json({ success: true, leaves: [] });
+    }
+
     let leaves = [];
 
     if (role === "admin") {
-      // Admin might pass either Employee ID or User ID depending on route design.
-      // Search for employee by either _id OR userId to prevent failures.
-      let employee = await Employee.findById(id);
+      // Validate ObjectId format if searching by ID directly
+      let employee = null;
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        employee = await Employee.findById(id);
+      }
       if (!employee) {
         employee = await Employee.findOne({ userId: id });
       }
 
       const employeeIdToQuery = employee ? employee._id : id;
-      leaves = await Leave.find({ employeeId: employeeIdToQuery }).sort({
-        createdAt: -1,
-      });
+
+      if (mongoose.Types.ObjectId.isValid(employeeIdToQuery)) {
+        leaves = await Leave.find({ employeeId: employeeIdToQuery }).sort({
+          createdAt: -1,
+        });
+      }
     } else {
       const employee = await Employee.findOne({ userId: id });
       if (!employee) {
-        // Return 200 with an empty array so frontend stops loading
         return res.status(200).json({ success: true, leaves: [] });
       }
       leaves = await Leave.find({ employeeId: employee._id }).sort({
