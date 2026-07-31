@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Mark from "../models/Marks.js";
 import Student from "../models/Student.js";
 import Employee from "../models/Employee.js";
@@ -5,7 +6,6 @@ import Employee from "../models/Employee.js";
 // 1. Submit or Edit batch marks (Lecturers)
 const submitOrUpdateMarks = async (req, res) => {
   try {
-    // Array of mark items: [{ studentId, subjectId, classId, examSessionId, score, outOf }]
     const { marks } = req.body;
 
     if (!marks || !Array.isArray(marks) || marks.length === 0) {
@@ -23,24 +23,34 @@ const submitOrUpdateMarks = async (req, res) => {
     }
 
     // Bulk upsert operations
-    const bulkOps = marks.map((item) => ({
-      updateOne: {
-        filter: {
-          studentId: item.studentId,
-          subjectId: item.subjectId,
-          examSessionId: item.examSessionId,
-        },
-        update: {
-          $set: {
-            classId: item.classId,
-            score: Number(item.score),
-            outOf: Number(item.outOf) || 20, // 👈 Saved max possible score (default 20)
-            enteredBy: employee._id,
+    const bulkOps = marks.map((item) => {
+      // Convert all strings to proper MongoDB ObjectIds safely
+      const studentObjId = new mongoose.Types.ObjectId(item.studentId);
+      const subjectObjId = new mongoose.Types.ObjectId(item.subjectId);
+      const sessionObjId = new mongoose.Types.ObjectId(item.examSessionId);
+      const classObjId = item.classId
+        ? new mongoose.Types.ObjectId(item.classId)
+        : null;
+
+      return {
+        updateOne: {
+          filter: {
+            studentId: studentObjId,
+            subjectId: subjectObjId,
+            examSessionId: sessionObjId,
           },
+          update: {
+            $set: {
+              classId: classObjId,
+              score: Number(item.score) || 0,
+              outOf: Number(item.outOf) || 20,
+              enteredBy: employee._id,
+            },
+          },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }));
+      };
+    });
 
     await Mark.bulkWrite(bulkOps);
 
@@ -55,7 +65,7 @@ const submitOrUpdateMarks = async (req, res) => {
   }
 };
 
-// 2. Get existing marks for a class, subject & session
+// 2. Get existing marks for a class, subject & session (Lecturer Grid)
 const getMarksByClassAndSubject = async (req, res) => {
   try {
     const { classId, subjectId, examSessionId } = req.query;
@@ -68,13 +78,19 @@ const getMarksByClassAndSubject = async (req, res) => {
     }
 
     // Fetch marks for this specific evaluation slot
-    const marks = await Mark.find({ classId, subjectId, examSessionId });
+    const marks = await Mark.find({
+      classId: new mongoose.Types.ObjectId(classId),
+      subjectId: new mongoose.Types.ObjectId(subjectId),
+      examSessionId: new mongoose.Types.ObjectId(examSessionId),
+    });
 
     // Extract outOf value if marks already exist (defaults to 20)
     const outOf = marks.length > 0 && marks[0].outOf ? marks[0].outOf : 20;
 
     // Fetch enrolled students
-    const students = await Student.find({ classId })
+    const students = await Student.find({
+      classId: new mongoose.Types.ObjectId(classId),
+    })
       .populate("userId", "name profileImage")
       .sort({ studentId: 1 });
 
@@ -87,6 +103,7 @@ const getMarksByClassAndSubject = async (req, res) => {
   }
 };
 
+// 3. Get Student Marks Report (Student Dashboard)
 const getStudentMarks = async (req, res) => {
   try {
     const { studentId, examSessionId } = req.params;
@@ -103,7 +120,9 @@ const getStudentMarks = async (req, res) => {
     }
 
     if (!student) {
-      console.log(`[DEBUG] No student found matching ID: ${studentId}`);
+      console.log(
+        `[DEBUG] No student profile found for identifier: ${studentId}`,
+      );
       return res.status(200).json({
         success: true,
         marks: [],
@@ -124,26 +143,34 @@ const getStudentMarks = async (req, res) => {
       filter.examSessionId = new mongoose.Types.ObjectId(examSessionId);
     }
 
-    console.log("[DEBUG] Searching marks with filter:", filter);
+    console.log("[DEBUG] Fetching marks with filter:", filter);
 
-    // 3. Retrieve marks and populate
-    const marks = await Mark.find(filter)
+    // 3. Retrieve marks and populate referenced documents
+    const rawMarks = await Mark.find(filter)
       .populate("subjectId", "name subjectName code subjectCode")
       .populate("examSessionId", "sessionName isPublished");
 
-    console.log(`[DEBUG] Found ${marks.length} mark entries.`);
+    // 4. Filter to include ONLY marks where the Exam Session is published
+    const publishedMarks = rawMarks.filter(
+      (m) => m.examSessionId && m.examSessionId.isPublished === true,
+    );
 
-    // 4. Return results
-    const totalScore = marks.reduce((acc, curr) => acc + curr.score, 0);
+    // 5. Calculate Metrics
+    const totalScore = publishedMarks.reduce(
+      (acc, curr) => acc + curr.score,
+      0,
+    );
     const average =
-      marks.length > 0 ? (totalScore / marks.length).toFixed(2) : "0.00";
+      publishedMarks.length > 0
+        ? (totalScore / publishedMarks.length).toFixed(2)
+        : "0.00";
 
     return res.status(200).json({
       success: true,
-      marks,
+      marks: publishedMarks,
       totalScore,
       average,
-      totalSubjects: marks.length,
+      totalSubjects: publishedMarks.length,
     });
   } catch (error) {
     console.error("Error in getStudentMarks:", error);
