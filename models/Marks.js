@@ -26,6 +26,7 @@ const markSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+      default: 20,
       max: 100,
     },
     enteredBy: {

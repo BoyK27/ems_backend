@@ -87,33 +87,47 @@ const getMarksByClassAndSubject = async (req, res) => {
   }
 };
 
-// 3. Get Student's marks & calculate overall average for dashboard
+// controllers/markController.js
+
 const getStudentMarks = async (req, res) => {
   try {
     const { studentId, examSessionId } = req.params;
 
-    let student = await Student.findById(studentId);
-    if (!student) {
-      student = await Student.findOne({ userId: studentId });
+    // 🚀 STEP 1: Flexible lookup (Check if passed ID is Student _id OR User _id)
+    let student = null;
+    if (mongoose.Types.ObjectId.isValid(studentId)) {
+      student = await Student.findOne({
+        $or: [{ _id: studentId }, { userId: studentId }],
+      });
     }
 
     if (!student) {
+      console.log(
+        `[Marks Lookup Error] No student found for ID/UserId: ${studentId}`,
+      );
       return res
         .status(404)
         .json({ success: false, error: "Student profile not found" });
     }
 
+    // 🚀 STEP 2: Build filter targeting the Student's actual _id
     const filter = { studentId: student._id };
     if (examSessionId && examSessionId !== "all") {
       filter.examSessionId = examSessionId;
     }
 
-    const marks = await Mark.find(filter)
+    // 🚀 STEP 3: Fetch marks and populate references
+    const rawMarks = await Mark.find(filter)
       .populate("subjectId", "subjectName subjectCode")
       .populate("examSessionId", "sessionName isPublished")
       .sort({ createdAt: -1 });
 
-    // Calculate normalized average normalized to /20 standard scale
+    // 🚀 STEP 4: Filter out unpublished marks (Safety check)
+    const marks = rawMarks.filter(
+      (m) => m.examSessionId && m.examSessionId.isPublished === true,
+    );
+
+    // Calculate average & total
     let totalNormalized = 0;
     marks.forEach((m) => {
       const maxScore = m.outOf || 20;
