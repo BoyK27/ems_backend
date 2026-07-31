@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import mongoose from "mongoose"; // 👈 FIX 1: Import mongoose
 import connectToDatabase from "./db/db.js";
 
 // Routes imports...
@@ -22,6 +23,8 @@ import subjectRouter from "./routes/subjects.js";
 import examSessionRouter from "./routes/examSession.js";
 import markRouter from "./routes/mark.js";
 
+import Subject from "./models/Subject.js";
+
 dotenv.config();
 
 const app = express();
@@ -38,10 +41,26 @@ app.use(
 app.use(express.json());
 app.use(express.static("public/uploads"));
 
-// FIX: Middleware to guarantee DB connection per serverless request
+// Middleware to guarantee DB connection per serverless request
 app.use(async (req, res, next) => {
   try {
     await connectToDatabase();
+
+    // 👈 FIX 2: Safely drop stale index once database connection is confirmed
+    if (mongoose.connection.readyState === 1) {
+      Subject.collection
+        .dropIndex("subjectCode_1")
+        .then(() =>
+          console.log("Successfully dropped stale subjectCode_1 index!"),
+        )
+        .catch((err) => {
+          // Ignore error if index is already dropped
+          if (err.code !== 27) {
+            console.log("Index status:", err.message);
+          }
+        });
+    }
+
     next();
   } catch (error) {
     console.error("Database connection failed:", error);
@@ -51,17 +70,6 @@ app.use(async (req, res, next) => {
   }
 });
 
-import Subject from "./models/Subject.js";
-
-// Temporary helper to drop stale index
-mongoose.connection.once("open", async () => {
-  try {
-    await Subject.collection.dropIndex("subjectCode_1");
-    console.log("Successfully dropped stale subjectCode_1 index!");
-  } catch (err) {
-    console.log("Index already dropped or not found:", err.message);
-  }
-});
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/department", departmentRouter);
