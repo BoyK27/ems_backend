@@ -51,6 +51,17 @@ app.use(async (req, res, next) => {
   }
 });
 
+import Subject from "./models/Subject.js";
+
+// Temporary helper to drop stale index
+mongoose.connection.once("open", async () => {
+  try {
+    await Subject.collection.dropIndex("subjectCode_1");
+    console.log("Successfully dropped stale subjectCode_1 index!");
+  } catch (err) {
+    console.log("Index already dropped or not found:", err.message);
+  }
+});
 // Routes
 app.use("/api/auth", authRouter);
 app.use("/api/department", departmentRouter);

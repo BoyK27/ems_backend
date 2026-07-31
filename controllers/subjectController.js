@@ -4,25 +4,52 @@ import Subject from "../models/Subject.js";
 const addSubject = async (req, res) => {
   try {
     const { subjectName, subjectCode, classId } = req.body;
-    /*
-    const existingSubject = await Subject.findOne({ subjectCode });
-    if (existingSubject) {
+
+    if (!subjectName || !subjectCode || !classId) {
       return res
         .status(400)
-        .json({ success: false, error: "Subject code already exists" });
+        .json({ success: false, error: "All fields are required" });
     }
-*/
 
-    const newSubject = new Subject({ subjectName, subjectCode, classId });
+    // Check if THIS SPECIFIC CLASS already has this subject code
+    const existingSubject = await Subject.findOne({
+      classId,
+      subjectCode: subjectCode.trim(),
+    });
+
+    if (existingSubject) {
+      return res.status(400).json({
+        success: false,
+        error: "This subject code already exists for the selected class",
+      });
+    }
+
+    const newSubject = new Subject({
+      subjectName: subjectName.trim(),
+      subjectCode: subjectCode.trim(),
+      classId,
+    });
+
     await newSubject.save();
 
-    return res.status(200).json({
+    const populatedSubject = await Subject.findById(newSubject._id).populate(
+      "classId",
+      "className code",
+    );
+
+    return res.status(201).json({
       success: true,
       message: "Subject created successfully",
-      subject: newSubject,
+      subject: populatedSubject,
     });
   } catch (error) {
     console.error("Error adding subject:", error.message);
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        error: "This subject code already exists for this class",
+      });
+    }
     return res
       .status(500)
       .json({ success: false, error: "Server error creating subject" });
@@ -48,10 +75,10 @@ const getSubjects = async (req, res) => {
 const getSubjectsByClass = async (req, res) => {
   try {
     const { classId } = req.params;
-    const subjects = await Subject.find({ classId }).populate(
-      "classId",
-      "className code",
-    );
+    const subjects = await Subject.find({ classId })
+      .populate("classId", "className code")
+      .sort({ subjectName: 1 });
+
     return res.status(200).json({ success: true, subjects });
   } catch (error) {
     return res.status(500).json({
@@ -67,9 +94,30 @@ const updateSubject = async (req, res) => {
     const { id } = req.params;
     const { subjectName, subjectCode, classId } = req.body;
 
+    // Prevent duplicate subject code in the target class when updating
+    if (subjectCode && classId) {
+      const existing = await Subject.findOne({
+        _id: { $ne: id }, // Exclude current subject
+        classId,
+        subjectCode: subjectCode.trim(),
+      });
+
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Another subject in this class is already using this subject code",
+        });
+      }
+    }
+
     const updatedSubject = await Subject.findByIdAndUpdate(
       id,
-      { subjectName, subjectCode, classId },
+      {
+        subjectName: subjectName?.trim(),
+        subjectCode: subjectCode?.trim(),
+        classId,
+      },
       { new: true },
     ).populate("classId", "className code");
 
@@ -85,6 +133,7 @@ const updateSubject = async (req, res) => {
       subject: updatedSubject,
     });
   } catch (error) {
+    console.error("Error updating subject:", error.message);
     return res
       .status(500)
       .json({ success: false, error: "Server error updating subject" });
