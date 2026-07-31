@@ -1,4 +1,4 @@
-import ExamSession from "../models/ExamSession.js";
+import ExamSession from "../models/ExamSessions.js";
 
 // Create an evaluation session
 const addExamSession = async (req, res) => {
