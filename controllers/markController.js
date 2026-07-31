@@ -73,23 +73,27 @@ const getMarksByClassAndSubject = async (req, res) => {
     if (!classId || !subjectId || !examSessionId) {
       return res.status(400).json({
         success: false,
-        error: "Missing classId, subjectId, or examSessionId in request query",
+        error: "Missing classId, subjectId, or examSessionId query parameters",
       });
     }
 
-    // Fetch marks for this specific evaluation slot
+    // Convert strings to valid Mongoose ObjectIds for reliable matching
+    const classObjId = new mongoose.Types.ObjectId(classId);
+    const subjectObjId = new mongoose.Types.ObjectId(subjectId);
+    const sessionObjId = new mongoose.Types.ObjectId(examSessionId);
+
+    // 1. Fetch marks for this specific evaluation slot
     const marks = await Mark.find({
-      classId: new mongoose.Types.ObjectId(classId),
-      subjectId: new mongoose.Types.ObjectId(subjectId),
-      examSessionId: new mongoose.Types.ObjectId(examSessionId),
+      classId: classObjId,
+      subjectId: subjectObjId,
+      examSessionId: sessionObjId,
     });
 
-    // Extract outOf value if marks already exist (defaults to 20)
     const outOf = marks.length > 0 && marks[0].outOf ? marks[0].outOf : 20;
 
-    // Fetch enrolled students
+    // 2. Fetch enrolled students for this class ID (cast to ObjectId)
     const students = await Student.find({
-      classId: new mongoose.Types.ObjectId(classId),
+      $or: [{ classId: classObjId }, { classId: classId }],
     })
       .populate("userId", "name profileImage")
       .sort({ studentId: 1 });
@@ -99,7 +103,7 @@ const getMarksByClassAndSubject = async (req, res) => {
     console.error("Error fetching class marks:", error.message);
     return res
       .status(500)
-      .json({ success: false, error: "Server error fetching marks" });
+      .json({ success: false, error: "Server error fetching marks sheet" });
   }
 };
 
