@@ -20,7 +20,7 @@ import studentAttendanceRouter from "./routes/studentAttendance.js";
 
 // NEW ACADEMIC FEATURE ROUTES
 import classRouter from "./routes/class.js";
-import subjectRouter from "./routes/subject.js";
+import subjectRouter from "./routes/subjects.js";
 import examSessionRouter from "./routes/examSession.js";
 import markRouter from "./routes/mark.js";
 
