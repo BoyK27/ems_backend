@@ -18,6 +18,12 @@ import studentRouter from "./routes/student.js";
 import studentLeaveRouter from "./routes/studentLeave.js";
 import studentAttendanceRouter from "./routes/studentAttendance.js";
 
+// NEW ACADEMIC FEATURE ROUTES
+import classRouter from "./routes/class.js";
+import subjectRouter from "./routes/subject.js";
+import examSessionRouter from "./routes/examSession.js";
+import markRouter from "./routes/mark.js";
+
 dotenv.config();
 
 const app = express();
@@ -48,6 +54,12 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/student", studentRouter);
 app.use("/api/student-leave", studentLeaveRouter);
 app.use("/api/student-attendance", studentAttendanceRouter);
+
+// Registering New Academic Endpoints
+app.use("/api/class", classRouter);
+app.use("/api/subject", subjectRouter);
+app.use("/api/exam-session", examSessionRouter);
+app.use("/api/mark", markRouter);
 
 export default app;
 

@@ -42,11 +42,11 @@ const addStudent = async (req, res) => {
       program,
       stream,
       department,
+      classId, // Assigned Class reference
       password,
       role,
     } = req.body;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -57,7 +57,6 @@ const addStudent = async (req, res) => {
 
     const finalStudentId = studentId || matricule;
 
-    // Check if student ID is unique
     const existingStudentId = await Student.findOne({
       studentId: finalStudentId,
     });
@@ -68,10 +67,8 @@ const addStudent = async (req, res) => {
       });
     }
 
-    // Hash Password
     const hashPassword = await bcrypt.hash(password, 10);
 
-    // Save User Account
     const newUser = new User({
       name,
       email,
@@ -81,7 +78,6 @@ const addStudent = async (req, res) => {
     });
     const savedUser = await newUser.save();
 
-    // Save Student Profile matching Schema explicitly
     const newStudent = new Student({
       userId: savedUser._id,
       studentId: finalStudentId,
@@ -93,6 +89,7 @@ const addStudent = async (req, res) => {
       level: level || form || "",
       program: program || stream || "",
       department,
+      classId: classId || null,
     });
     await newStudent.save();
 
@@ -113,7 +110,8 @@ const getStudents = async (req, res) => {
   try {
     const students = await Student.find()
       .populate({ path: "userId", select: "-password" })
-      .populate("department", "dep_name");
+      .populate("department", "dep_name")
+      .populate("classId");
 
     return res.status(200).json({ success: true, students });
   } catch (error) {
@@ -124,19 +122,20 @@ const getStudents = async (req, res) => {
   }
 };
 
-// 3. Get Single Student by ID (Student Mongo ID or User ID)
+// 3. Get Single Student by ID
 const getStudent = async (req, res) => {
   const { id } = req.params;
   try {
-    let student;
-    student = await Student.findById(id)
+    let student = await Student.findById(id)
       .populate({ path: "userId", select: "-password" })
-      .populate("department", "dep_name");
+      .populate("department", "dep_name")
+      .populate("classId");
 
     if (!student) {
       student = await Student.findOne({ userId: id })
         .populate({ path: "userId", select: "-password" })
-        .populate("department", "dep_name");
+        .populate("department", "dep_name")
+        .populate("classId");
     }
 
     if (!student) {
@@ -167,6 +166,7 @@ const updateStudent = async (req, res) => {
       program,
       stream,
       department,
+      classId,
       gender,
       dob,
       maritalStatus,
@@ -179,12 +179,10 @@ const updateStudent = async (req, res) => {
         .json({ success: false, error: "Student not found" });
     }
 
-    // 1. Update linked User account name if provided
     if (name) {
       await User.findByIdAndUpdate(student.userId, { name });
     }
 
-    // 2. Update Student attributes cleanly
     const updatedFields = {
       studentId: studentId || matricule || student.studentId,
       form:
@@ -204,6 +202,7 @@ const updateStudent = async (req, res) => {
             ? stream
             : student.program,
       department: department || student.department,
+      classId: classId || student.classId,
       gender: gender || student.gender,
       dob: dob || student.dob,
       maritalStatus: maritalStatus || student.maritalStatus,
@@ -215,7 +214,8 @@ const updateStudent = async (req, res) => {
       { new: true },
     )
       .populate({ path: "userId", select: "-password" })
-      .populate("department", "dep_name");
+      .populate("department", "dep_name")
+      .populate("classId");
 
     return res.status(200).json({
       success: true,
@@ -242,7 +242,6 @@ const deleteStudent = async (req, res) => {
         .json({ success: false, error: "Student not found" });
     }
 
-    // Cascading deletion
     await User.findByIdAndDelete(student.userId);
     await StudentLeave.deleteMany({ studentId: id });
     await Attendance.deleteMany({ studentId: id });
@@ -265,7 +264,8 @@ const fetchStudentsByDepartment = async (req, res) => {
     const { id } = req.params;
     const students = await Student.find({ department: id })
       .populate({ path: "userId", select: "-password" })
-      .populate("department", "dep_name");
+      .populate("department", "dep_name")
+      .populate("classId");
 
     return res.status(200).json({ success: true, students });
   } catch (error) {
