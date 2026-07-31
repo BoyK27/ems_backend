@@ -34,12 +34,11 @@ app.use(
     credentials: true,
   }),
 );
-app.options("*", cors());
 
 app.use(express.json());
 app.use(express.static("public/uploads"));
 
-// 🚀 FIX: Middleware to guarantee DB connection per serverless request
+// FIX: Middleware to guarantee DB connection per serverless request
 app.use(async (req, res, next) => {
   try {
     await connectToDatabase();
