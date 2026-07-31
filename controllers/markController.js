@@ -24,13 +24,11 @@ const submitOrUpdateMarks = async (req, res) => {
 
     // Bulk upsert operations
     const bulkOps = marks.map((item) => {
-      // Convert all strings to proper MongoDB ObjectIds safely
+      // Safely convert string IDs to ObjectIds
       const studentObjId = new mongoose.Types.ObjectId(item.studentId);
       const subjectObjId = new mongoose.Types.ObjectId(item.subjectId);
       const sessionObjId = new mongoose.Types.ObjectId(item.examSessionId);
-      const classObjId = item.classId
-        ? new mongoose.Types.ObjectId(item.classId)
-        : null;
+      const classObjId = new mongoose.Types.ObjectId(item.classId);
 
       return {
         updateOne: {
@@ -77,7 +75,6 @@ const getMarksByClassAndSubject = async (req, res) => {
       });
     }
 
-    // Convert strings to valid Mongoose ObjectIds for reliable matching
     const classObjId = new mongoose.Types.ObjectId(classId);
     const subjectObjId = new mongoose.Types.ObjectId(subjectId);
     const sessionObjId = new mongoose.Types.ObjectId(examSessionId);
@@ -91,7 +88,7 @@ const getMarksByClassAndSubject = async (req, res) => {
 
     const outOf = marks.length > 0 && marks[0].outOf ? marks[0].outOf : 20;
 
-    // 2. Fetch enrolled students for this class ID (cast to ObjectId)
+    // 2. Fetch enrolled students for this class ID
     const students = await Student.find({
       $or: [{ classId: classObjId }, { classId: classId }],
     })
@@ -106,83 +103,6 @@ const getMarksByClassAndSubject = async (req, res) => {
       .json({ success: false, error: "Server error fetching marks sheet" });
   }
 };
-
-/*
-// 3. Get Student Marks Report (Student Dashboard)
-const getStudentMarks = async (req, res) => {
-  try {
-    const { studentId, examSessionId } = req.params;
-
-    // 1. Find the Student document by either Student._id OR Student.userId
-    let student = null;
-    if (mongoose.Types.ObjectId.isValid(studentId)) {
-      student = await Student.findOne({
-        $or: [
-          { _id: new mongoose.Types.ObjectId(studentId) },
-          { userId: new mongoose.Types.ObjectId(studentId) },
-        ],
-      });
-    }
-
-    if (!student) {
-      console.log(
-        `[DEBUG] No student profile found for identifier: ${studentId}`,
-      );
-      return res.status(200).json({
-        success: true,
-        marks: [],
-        totalScore: 0,
-        average: "0.00",
-        totalSubjects: 0,
-      });
-    }
-
-    // 2. Build filter for the Marks collection using the resolved Student _id
-    const filter = { studentId: student._id };
-
-    if (
-      examSessionId &&
-      examSessionId !== "all" &&
-      mongoose.Types.ObjectId.isValid(examSessionId)
-    ) {
-      filter.examSessionId = new mongoose.Types.ObjectId(examSessionId);
-    }
-
-    console.log("[DEBUG] Fetching marks with filter:", filter);
-
-    // 3. Retrieve marks and populate referenced documents
-    const rawMarks = await Mark.find(filter)
-      .populate("subjectId", "name subjectName code subjectCode")
-      .populate("examSessionId", "sessionName isPublished");
-
-    // 4. Filter to include ONLY marks where the Exam Session is published
-    const publishedMarks = rawMarks.filter(
-      (m) => m.examSessionId && m.examSessionId.isPublished === true,
-    );
-
-    // 5. Calculate Metrics
-    const totalScore = publishedMarks.reduce(
-      (acc, curr) => acc + curr.score,
-      0,
-    );
-    const average =
-      publishedMarks.length > 0
-        ? (totalScore / publishedMarks.length).toFixed(2)
-        : "0.00";
-
-    return res.status(200).json({
-      success: true,
-      marks: publishedMarks,
-      totalScore,
-      average,
-      totalSubjects: publishedMarks.length,
-    });
-  } catch (error) {
-    console.error("Error in getStudentMarks:", error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-};
-*/
 
 // 3. Get Student Marks Report (Student Dashboard)
 const getStudentMarks = async (req, res) => {
@@ -201,7 +121,6 @@ const getStudentMarks = async (req, res) => {
     }
 
     if (!student) {
-      console.log(`[DEBUG] No student profile found for ID: ${studentId}`);
       return res.status(200).json({
         success: true,
         marks: [],
@@ -226,13 +145,13 @@ const getStudentMarks = async (req, res) => {
       .populate("subjectId", "name subjectName code subjectCode")
       .populate("examSessionId", "sessionName isPublished");
 
-    // 🚀 SAFE FILTER: Include mark if session is explicitly published OR if isPublished field isn't defined yet
+    // 4. Safe Filter: Include marks where session is explicitly published OR undefined
     const publishedMarks = rawMarks.filter((m) => {
       if (!m.examSessionId) return false;
-      return m.examSessionId.isPublished !== false; // Allows true or undefined
+      return m.examSessionId.isPublished !== false;
     });
 
-    // 4. Calculate total score
+    // 5. Calculate Metrics
     const totalScore = publishedMarks.reduce(
       (acc, curr) => acc + curr.score,
       0,
@@ -259,4 +178,5 @@ const getStudentMarks = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
 export { submitOrUpdateMarks, getMarksByClassAndSubject, getStudentMarks };

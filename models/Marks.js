@@ -26,8 +26,13 @@ const markSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+      default: 0,
+    },
+    outOf: {
+      type: Number,
+      required: true,
       default: 20,
-      max: 100,
+      min: 1,
     },
     enteredBy: {
       type: mongoose.Schema.Types.ObjectId,
