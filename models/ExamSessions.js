@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const examSessionSchema = new mongoose.Schema(
   {
     sessionName: { type: String, required: true },
-    isPublished: { type: Boolean, default: false },
+    isPublished: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
