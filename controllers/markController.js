@@ -89,69 +89,46 @@ const getMarksByClassAndSubject = async (req, res) => {
 
 // controllers/markController.js
 
-const getStudentMarks = async (req, res) => {
+// Express controller (e.g., markController.js)
+export const getStudentMarks = async (req, res) => {
   try {
-    const { studentId, examSessionId } = req.params;
+    const { studentId, sessionId } = req.params;
 
-    // 🚀 STEP 1: Flexible lookup (Check if passed ID is Student _id OR User _id)
-    let student = null;
-    if (mongoose.Types.ObjectId.isValid(studentId)) {
-      student = await Student.findOne({
-        $or: [{ _id: studentId }, { userId: studentId }],
-      });
+    // 1. Build filter query
+    let query = { studentId: studentId };
+
+    // 2. Only filter by session if it's NOT "all"
+    if (sessionId && sessionId !== "all") {
+      query.examSessionId = sessionId;
     }
 
-    if (!student) {
-      console.log(
-        `[Marks Lookup Error] No student found for ID/UserId: ${studentId}`,
-      );
-      return res
-        .status(404)
-        .json({ success: false, error: "Student profile not found" });
-    }
-
-    // 🚀 STEP 2: Build filter targeting the Student's actual _id
-    const filter = { studentId: student._id };
-    if (examSessionId && examSessionId !== "all") {
-      filter.examSessionId = examSessionId;
-    }
-
-    // 🚀 STEP 3: Fetch marks and populate references
-    const rawMarks = await Mark.find(filter)
+    // 3. Fetch marks and populate subject & session details
+    const marks = await Mark.find(query)
       .populate("subjectId", "subjectName subjectCode")
-      .populate("examSessionId", "sessionName isPublished")
-      .sort({ createdAt: -1 });
+      .populate("examSessionId", "sessionName isPublished");
 
-    // 🚀 STEP 4: Filter out unpublished marks (Safety check)
-    const marks = rawMarks.filter(
-      (m) => m.examSessionId && m.examSessionId.isPublished === true,
+    // 4. Filter out any marks where the exam session isn't published yet (optional safeguard)
+    const publishedMarks = marks.filter((m) => m.examSessionId?.isPublished);
+
+    // 5. Calculate Average & Total
+    const totalScore = publishedMarks.reduce(
+      (acc, curr) => acc + curr.score,
+      0,
     );
-
-    // Calculate average & total
-    let totalNormalized = 0;
-    marks.forEach((m) => {
-      const maxScore = m.outOf || 20;
-      totalNormalized += (m.score / maxScore) * 20;
-    });
-
+    const totalSubjects = publishedMarks.length;
     const average =
-      marks.length > 0 ? (totalNormalized / marks.length).toFixed(2) : "0.00";
-
-    const totalScore = marks.reduce((acc, curr) => acc + curr.score, 0);
+      totalSubjects > 0 ? (totalScore / totalSubjects).toFixed(2) : "0.00";
 
     return res.status(200).json({
       success: true,
-      marks,
+      marks: publishedMarks,
       totalScore,
       average,
-      totalSubjects: marks.length,
+      totalSubjects,
     });
   } catch (error) {
-    console.error("Error fetching student report:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Server error fetching student marks" });
+    console.error("Error fetching marks:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 export { submitOrUpdateMarks, getMarksByClassAndSubject, getStudentMarks };
