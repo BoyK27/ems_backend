@@ -5,7 +5,7 @@ import Employee from "../models/Employee.js";
 // 1. Submit or Edit batch marks (Lecturers)
 const submitOrUpdateMarks = async (req, res) => {
   try {
-    // Array of mark items: [{ studentId, subjectId, classId, examSessionId, score }]
+    // Array of mark items: [{ studentId, subjectId, classId, examSessionId, score, outOf }]
     const { marks } = req.body;
 
     if (!marks || !Array.isArray(marks) || marks.length === 0) {
@@ -34,6 +34,7 @@ const submitOrUpdateMarks = async (req, res) => {
           $set: {
             classId: item.classId,
             score: Number(item.score),
+            outOf: Number(item.outOf) || 20, // 👈 Saved max possible score (default 20)
             enteredBy: employee._id,
           },
         },
@@ -54,10 +55,9 @@ const submitOrUpdateMarks = async (req, res) => {
   }
 };
 
-// 2. Get existing marks for a class, subject & session using Query Parameters (req.query)
+// 2. Get existing marks for a class, subject & session
 const getMarksByClassAndSubject = async (req, res) => {
   try {
-    // OPTION B: Extracting from query strings e.g. /api/mark/class-subject?classId=...&subjectId=...
     const { classId, subjectId, examSessionId } = req.query;
 
     if (!classId || !subjectId || !examSessionId) {
@@ -70,12 +70,15 @@ const getMarksByClassAndSubject = async (req, res) => {
     // Fetch marks for this specific evaluation slot
     const marks = await Mark.find({ classId, subjectId, examSessionId });
 
-    // Also fetch students enrolled in this class to map empty rows if necessary
+    // Extract outOf value if marks already exist (defaults to 20)
+    const outOf = marks.length > 0 && marks[0].outOf ? marks[0].outOf : 20;
+
+    // Fetch enrolled students
     const students = await Student.find({ classId })
       .populate("userId", "name profileImage")
       .sort({ studentId: 1 });
 
-    return res.status(200).json({ success: true, students, marks });
+    return res.status(200).json({ success: true, students, marks, outOf });
   } catch (error) {
     console.error("Error fetching class marks:", error.message);
     return res
@@ -84,12 +87,11 @@ const getMarksByClassAndSubject = async (req, res) => {
   }
 };
 
-// 3. Get Student's marks & calculate overall average for their dashboard
+// 3. Get Student's marks & calculate overall average for dashboard
 const getStudentMarks = async (req, res) => {
   try {
     const { studentId, examSessionId } = req.params;
 
-    // Find student document
     let student = await Student.findById(studentId);
     if (!student) {
       student = await Student.findOne({ userId: studentId });
@@ -111,10 +113,17 @@ const getStudentMarks = async (req, res) => {
       .populate("examSessionId", "sessionName isPublished")
       .sort({ createdAt: -1 });
 
-    // Calculate total & dynamic average score
-    const totalScore = marks.reduce((acc, curr) => acc + curr.score, 0);
+    // Calculate normalized average normalized to /20 standard scale
+    let totalNormalized = 0;
+    marks.forEach((m) => {
+      const maxScore = m.outOf || 20;
+      totalNormalized += (m.score / maxScore) * 20;
+    });
+
     const average =
-      marks.length > 0 ? (totalScore / marks.length).toFixed(2) : "0.00";
+      marks.length > 0 ? (totalNormalized / marks.length).toFixed(2) : "0.00";
+
+    const totalScore = marks.reduce((acc, curr) => acc + curr.score, 0);
 
     return res.status(200).json({
       success: true,

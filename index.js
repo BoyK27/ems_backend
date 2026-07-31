@@ -31,12 +31,14 @@ const app = express();
 app.use(
   cors({
     origin: "https://m-ochard.vercel.app",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   }),
 );
 app.use(express.json());
 app.use(express.static("public/uploads"));
+app.options("*", cors());
 
 connectToDatabase();
 
