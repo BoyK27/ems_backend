@@ -128,7 +128,7 @@ const getStudentMarks = async (req, res) => {
 
     // 3. Retrieve marks and populate
     const marks = await Mark.find(filter)
-      .populate("subjectId", "subjectName subjectCode")
+      .populate("subjectId", "name subjectName code subjectCode")
       .populate("examSessionId", "sessionName isPublished");
 
     console.log(`[DEBUG] Found ${marks.length} mark entries.`);
