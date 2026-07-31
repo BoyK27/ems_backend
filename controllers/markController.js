@@ -54,10 +54,18 @@ const submitOrUpdateMarks = async (req, res) => {
   }
 };
 
-// 2. Get existing marks for a class, subject & session (for filling/editing in table view)
+// 2. Get existing marks for a class, subject & session using Query Parameters (req.query)
 const getMarksByClassAndSubject = async (req, res) => {
   try {
-    const { classId, subjectId, examSessionId } = req.params;
+    // OPTION B: Extracting from query strings e.g. /api/mark/class-subject?classId=...&subjectId=...
+    const { classId, subjectId, examSessionId } = req.query;
+
+    if (!classId || !subjectId || !examSessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing classId, subjectId, or examSessionId in request query",
+      });
+    }
 
     // Fetch marks for this specific evaluation slot
     const marks = await Mark.find({ classId, subjectId, examSessionId });
