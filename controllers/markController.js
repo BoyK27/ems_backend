@@ -87,10 +87,7 @@ const getMarksByClassAndSubject = async (req, res) => {
   }
 };
 
-// controllers/markController.js
-
-// Express controller (e.g., markController.js)
-export const getStudentMarks = async (req, res) => {
+const getStudentMarks = async (req, res) => {
   try {
     const { studentId, sessionId } = req.params;
 
