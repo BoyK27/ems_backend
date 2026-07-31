@@ -4,13 +4,14 @@ import Subject from "../models/Subject.js";
 const addSubject = async (req, res) => {
   try {
     const { subjectName, subjectCode, classId } = req.body;
-
+    /*
     const existingSubject = await Subject.findOne({ subjectCode });
     if (existingSubject) {
       return res
         .status(400)
         .json({ success: false, error: "Subject code already exists" });
     }
+*/
 
     const newSubject = new Subject({ subjectName, subjectCode, classId });
     await newSubject.save();

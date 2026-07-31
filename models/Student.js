@@ -20,16 +20,16 @@ const studentSchema = new Schema(
       type: String,
     },
     form: {
-      type: String, // e.g., "Form 1", "Form 4", "Lower Sixth"
+      type: String,
     },
     stream: {
-      type: String, // e.g., "Branch A", "Arts", "Science"
+      type: String,
     },
     level: {
-      type: String, // e.g., "100", "200", "300"
+      type: String,
     },
     program: {
-      type: String, // e.g., "Software Engineering"
+      type: String,
     },
     department: {
       type: Schema.Types.ObjectId,

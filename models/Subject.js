@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const subjectSchema = new mongoose.Schema(
   {
     subjectName: { type: String, required: true },
-    subjectCode: { type: String, required: true, unique: true }, // e.g. "SWE201"
+    subjectCode: { type: String, required: true /*unique: true*/ },
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Class",
