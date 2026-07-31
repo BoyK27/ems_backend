@@ -107,6 +107,7 @@ const getMarksByClassAndSubject = async (req, res) => {
   }
 };
 
+/*
 // 3. Get Student Marks Report (Student Dashboard)
 const getStudentMarks = async (req, res) => {
   try {
@@ -181,5 +182,81 @@ const getStudentMarks = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+*/
 
+// 3. Get Student Marks Report (Student Dashboard)
+const getStudentMarks = async (req, res) => {
+  try {
+    const { studentId, examSessionId } = req.params;
+
+    // 1. Find Student profile by _id OR userId
+    let student = null;
+    if (mongoose.Types.ObjectId.isValid(studentId)) {
+      student = await Student.findOne({
+        $or: [
+          { _id: new mongoose.Types.ObjectId(studentId) },
+          { userId: new mongoose.Types.ObjectId(studentId) },
+        ],
+      });
+    }
+
+    if (!student) {
+      console.log(`[DEBUG] No student profile found for ID: ${studentId}`);
+      return res.status(200).json({
+        success: true,
+        marks: [],
+        totalScore: 0,
+        average: "0.00",
+        totalSubjects: 0,
+      });
+    }
+
+    // 2. Query filter
+    const filter = { studentId: student._id };
+    if (
+      examSessionId &&
+      examSessionId !== "all" &&
+      mongoose.Types.ObjectId.isValid(examSessionId)
+    ) {
+      filter.examSessionId = new mongoose.Types.ObjectId(examSessionId);
+    }
+
+    // 3. Fetch marks and populate references
+    const rawMarks = await Mark.find(filter)
+      .populate("subjectId", "name subjectName code subjectCode")
+      .populate("examSessionId", "sessionName isPublished");
+
+    // 🚀 SAFE FILTER: Include mark if session is explicitly published OR if isPublished field isn't defined yet
+    const publishedMarks = rawMarks.filter((m) => {
+      if (!m.examSessionId) return false;
+      return m.examSessionId.isPublished !== false; // Allows true or undefined
+    });
+
+    // 4. Calculate total score
+    const totalScore = publishedMarks.reduce(
+      (acc, curr) => acc + curr.score,
+      0,
+    );
+    const totalPossible = publishedMarks.reduce(
+      (acc, curr) => acc + (curr.outOf || 20),
+      0,
+    );
+
+    const average =
+      totalPossible > 0
+        ? ((totalScore / totalPossible) * 20).toFixed(2)
+        : "0.00";
+
+    return res.status(200).json({
+      success: true,
+      marks: publishedMarks,
+      totalScore,
+      average,
+      totalSubjects: publishedMarks.length,
+    });
+  } catch (error) {
+    console.error("Error in getStudentMarks:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
 export { submitOrUpdateMarks, getMarksByClassAndSubject, getStudentMarks };
