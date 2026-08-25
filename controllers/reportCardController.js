@@ -1,4 +1,4 @@
-import Mark from "../models/Mark.js";
+import Mark from "../models/Marks.js";
 import Semester from "../models/Semester.js";
 
 // GET: Fetch Compiled Semester Report Card
