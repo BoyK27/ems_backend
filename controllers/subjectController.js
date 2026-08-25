@@ -155,10 +155,45 @@ const deleteSubject = async (req, res) => {
   }
 };
 
+// Get subjects assigned to the logged-in teacher for a specific class
+const getTeacherAssignedSubjects = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const userId = req.user._id; // Extracted from authMiddleware
+
+    // Find the Teacher record linked to this User
+    const teacher = await Teacher.findOne({ userId });
+
+    // Fallback: If no dedicated Teacher record exists (e.g., Admin testing), return all class subjects
+    if (!teacher) {
+      const allSubjects = await Subject.find({ classId }).sort({
+        subjectName: 1,
+      });
+      return res.status(200).json({ success: true, subjects: allSubjects });
+    }
+
+    // Fetch subjects matching classId that are present in teacher's assigned subjects list
+    // (Adjust the field names below based on your Teacher schema structure)
+    const subjects = await Subject.find({
+      _id: { $in: teacher.assignedSubjects || teacher.subjects },
+      classId,
+    }).sort({ subjectName: 1 });
+
+    return res.status(200).json({ success: true, subjects });
+  } catch (error) {
+    console.error("Error fetching teacher subjects:", error.message);
+    return res.status(500).json({
+      success: false,
+      error: "Server error fetching assigned subjects for class",
+    });
+  }
+};
+
 export {
   addSubject,
   getSubjects,
   getSubjectsByClass,
   updateSubject,
   deleteSubject,
+  getTeacherAssignedSubjects,
 };
