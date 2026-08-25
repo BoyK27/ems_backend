@@ -1,4 +1,5 @@
 import Class from "../models/Class.js";
+import User from "../models/User.js";
 
 // Add a new class
 const addClass = async (req, res) => {
@@ -38,6 +39,49 @@ const getClasses = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, error: "Server error fetching classes" });
+  }
+};
+
+// Get assigned classes for the logged-in user
+const getAssignedClasses = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Unauthorized access" });
+    }
+
+    const user = await User.findById(userId);
+
+    // If User is admin, return all classes
+    if (user && user.role === "admin") {
+      const allClasses = await Class.find().sort({ className: 1 });
+      return res.status(200).json({ success: true, classes: allClasses });
+    }
+
+    // Query assigned classes or fallback to all classes if assignments aren't filtered by user
+    let assignedClasses = await Class.find({
+      $or: [
+        { teacherId: userId },
+        { teacher: userId },
+        { assignedTeacher: userId },
+        { _id: { $in: user?.assignedClasses || [] } },
+      ],
+    }).sort({ className: 1 });
+
+    if (assignedClasses.length === 0) {
+      assignedClasses = await Class.find().sort({ className: 1 });
+    }
+
+    return res.status(200).json({ success: true, classes: assignedClasses });
+  } catch (error) {
+    console.error("Error fetching assigned classes:", error.message);
+    return res.status(500).json({
+      success: false,
+      error: "Server error fetching assigned classes",
+    });
   }
 };
 
@@ -100,4 +144,11 @@ const deleteClass = async (req, res) => {
   }
 };
 
-export { addClass, getClasses, getClass, updateClass, deleteClass };
+export {
+  addClass,
+  getClasses,
+  getAssignedClasses,
+  getClass,
+  updateClass,
+  deleteClass,
+};

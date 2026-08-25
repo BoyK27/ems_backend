@@ -3,6 +3,7 @@ import authMiddleware from "../middleware/authmiddleware.js";
 import {
   addClass,
   getClasses,
+  getAssignedClasses,
   getClass,
   updateClass,
   deleteClass,
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.post("/add", authMiddleware, addClass);
 router.get("/", authMiddleware, getClasses);
+router.get("/assigned", authMiddleware, getAssignedClasses);
 router.get("/:id", authMiddleware, getClass);
 router.put("/:id", authMiddleware, updateClass);
 router.delete("/:id", authMiddleware, deleteClass);
