@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import mongoose from "mongoose"; // 👈 FIX 1: Import mongoose
+import mongoose from "mongoose"; // FIX 1: Import mongoose
 import connectToDatabase from "./db/db.js";
 
 // Routes imports...
@@ -23,6 +23,7 @@ import subjectRouter from "./routes/subjects.js";
 import examSessionRouter from "./routes/examSession.js";
 import markRouter from "./routes/mark.js";
 import reportCardRouter from "./routes/reportCard.js";
+import semesterRouter from "./routes/semester.js"; // dded Semester Route Import
 
 import Subject from "./models/Subject.js";
 
@@ -47,7 +48,7 @@ app.use(async (req, res, next) => {
   try {
     await connectToDatabase();
 
-    // 👈 FIX 2: Safely drop stale index once database connection is confirmed
+    //  FIX 2: Safely drop stale index once database connection is confirmed
     if (mongoose.connection.readyState === 1) {
       Subject.collection
         .dropIndex("subjectCode_1")
@@ -89,6 +90,7 @@ app.use("/api/report-card", reportCardRouter);
 app.use("/api/class", classRouter);
 app.use("/api/subject", subjectRouter);
 app.use("/api/exam-session", examSessionRouter);
+app.use("/api/semester", semesterRouter); // 👈 Registered Semester Endpoint
 app.use("/api/mark", markRouter);
 
 export default app;
