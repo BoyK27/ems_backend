@@ -33,12 +33,21 @@ const addExamSession = async (req, res) => {
   }
 };
 
-// Fetch all exam sessions with semester populated
+// Fetch exam sessions (Supports optional ?semesterId query filtering)
 const getExamSessions = async (req, res) => {
   try {
-    const sessions = await ExamSession.find()
+    const { semesterId } = req.query;
+    const query = {};
+
+    // Filter by semester if provided and not "all"
+    if (semesterId && semesterId !== "all") {
+      query.semesterId = semesterId;
+    }
+
+    const sessions = await ExamSession.find(query)
       .populate("semesterId", "name academicYear")
       .sort({ createdAt: -1 });
+
     return res.status(200).json({ success: true, sessions });
   } catch (error) {
     return res
@@ -47,11 +56,13 @@ const getExamSessions = async (req, res) => {
   }
 };
 
-// NEW: Get exam sessions by Semester ID (Fixes MarksEntry fetch)
+// Get exam sessions by Semester ID param
 const getExamSessionsBySemester = async (req, res) => {
   try {
     const { semesterId } = req.params;
-    const sessions = await ExamSession.find({ semesterId }).sort({
+    const query = semesterId !== "all" ? { semesterId } : {};
+
+    const sessions = await ExamSession.find(query).sort({
       createdAt: -1,
     });
     return res.status(200).json({ success: true, sessions });
