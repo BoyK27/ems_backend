@@ -22,6 +22,7 @@ import classRouter from "./routes/class.js";
 import subjectRouter from "./routes/subjects.js";
 import examSessionRouter from "./routes/examSession.js";
 import markRouter from "./routes/mark.js";
+import reportCardRouter from "./routes/reportCard.js";
 
 import Subject from "./models/Subject.js";
 
@@ -83,6 +84,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/student", studentRouter);
 app.use("/api/student-leave", studentLeaveRouter);
 app.use("/api/student-attendance", studentAttendanceRouter);
+app.use("/api/report-card", reportCardRouter);
 
 app.use("/api/class", classRouter);
 app.use("/api/subject", subjectRouter);
