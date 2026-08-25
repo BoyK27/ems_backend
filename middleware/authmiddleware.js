@@ -4,34 +4,46 @@ import User from "../models/User.js";
 const verifyUser = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Token Not Provided" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized: Token missing or malformed",
+      });
     }
 
-    const token = authHeader.split(" ")[1]; // Split by space
+    const token = authHeader.split(" ")[1];
     if (!token) {
       return res
         .status(401)
-        .json({ success: false, error: "Token Not Provided" });
+        .json({ success: false, error: "Unauthorized: Token empty" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_KEY);
-    if (!decoded) {
-      return res.status(401).json({ success: false, error: "Token Not Valid" });
+    const jwtSecret = process.env.JWT_KEY || process.env.JWT_SECRET;
+    const decoded = jwt.verify(token, jwtSecret);
+
+    // Support both _id and id stored in JWT payload
+    const userId = decoded._id || decoded.id;
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Unauthorized: Invalid token payload" });
     }
 
-    const user = await User.findById(decoded._id).select("-password");
+    const user = await User.findById(userId).select("-password");
     if (!user) {
-      return res.status(404).json({ success: false, error: "User Not Found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "User account no longer exists" });
     }
 
     req.user = user;
     next();
   } catch (error) {
     console.error("Auth Middleware Error:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(401).json({
+      success: false,
+      error: "Unauthorized: Token expired or invalid",
+    });
   }
 };
 

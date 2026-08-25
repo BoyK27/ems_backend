@@ -1,38 +1,44 @@
 /**
- * Role Verification Middleware
- * Accepts an array of allowed roles or a single role string.
- * Example usage: verifyRole(["admin", "student"]) or verifyRole("admin")
+ * Role Authorization Middleware
+ * Example: verifyRole(["admin"]) or verifyRole(["admin", "employee"])
  */
 const verifyRole = (allowedRoles) => {
   return (req, res, next) => {
     try {
-      // Ensure user attached by authMiddleware exists
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          error: "Unauthorized. User authentication required.",
+          error: "Unauthorized: Authentication required",
         });
       }
 
-      // Convert single role string input into an array for consistent checking
+      // Extract and normalize role string from User model
+      const userRole = String(req.user.role || "")
+        .trim()
+        .toLowerCase();
+
+      // Normalize allowed roles list
       const rolesArray = Array.isArray(allowedRoles)
         ? allowedRoles
         : [allowedRoles];
+      const normalizedAllowedRoles = rolesArray.map((r) =>
+        String(r).trim().toLowerCase(),
+      );
 
-      // Check if user's role exists within the allowed roles
-      if (!rolesArray.includes(req.user.role)) {
+      // Check authorization
+      if (!normalizedAllowedRoles.includes(userRole)) {
         return res.status(403).json({
           success: false,
-          error: "Access denied. Insufficient permissions for this action.",
+          error: `Forbidden: Access restricted to [${rolesArray.join(", ")}] roles. Current user role: '${req.user.role}'`,
         });
       }
 
       next();
     } catch (error) {
-      console.error("Role Verification Error:", error.message);
+      console.error("Role Verification Middleware Error:", error.message);
       return res.status(500).json({
         success: false,
-        error: "Server error during authorization check.",
+        error: "Internal server error during authorization check",
       });
     }
   };
