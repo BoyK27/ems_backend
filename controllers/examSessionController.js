@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import ExamSession from "../models/ExamSessions.js";
 import Semester from "../models/Semester.js";
 
