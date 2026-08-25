@@ -37,14 +37,31 @@ const addExamSession = async (req, res) => {
 const getExamSessions = async (req, res) => {
   try {
     const { semesterId } = req.query;
-    const query = {};
+    let query = {};
 
-    if (
-      semesterId &&
-      semesterId !== "all" &&
-      mongoose.Types.ObjectId.isValid(semesterId)
-    ) {
-      query.semesterId = new mongoose.Types.ObjectId(semesterId);
+    if (semesterId && semesterId !== "all") {
+      if (!mongoose.Types.ObjectId.isValid(semesterId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid semesterId",
+        });
+      }
+
+      const semesterObjectId = new mongoose.Types.ObjectId(semesterId);
+      const semester = await Semester.findById(semesterObjectId)
+        .select("sessions")
+        .lean();
+
+      const referencedSessionIds = (semester?.sessions || [])
+        .map((item) => item?.sessionId?._id || item?.sessionId)
+        .filter(Boolean);
+
+      query = {
+        $or: [
+          { semesterId: semesterObjectId },
+          { _id: { $in: referencedSessionIds } },
+        ],
+      };
     }
 
     const sessions = await ExamSession.find(query)
@@ -55,9 +72,10 @@ const getExamSessions = async (req, res) => {
     return res.status(200).json({ success: true, sessions });
   } catch (error) {
     console.error("Error fetching exam sessions:", error);
-    return res
-      .status(500)
-      .json({ success: false, error: "Server error fetching exam sessions" });
+    return res.status(500).json({
+      success: false,
+      error: "Server error fetching exam sessions",
+    });
   }
 };
 
