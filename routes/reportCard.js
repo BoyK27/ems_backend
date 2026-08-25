@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getSemesterReportCard,
+  getClassReportCardSummary,
   togglePublishReportCards,
 } from "../controllers/reportCardController.js";
 import verifyUser from "../middleware/authmiddleware.js";
@@ -8,7 +9,15 @@ import verifyRole from "../middleware/verifyRole.js";
 
 const router = express.Router();
 
-// Fetch report card (Admins & Students only)
+// Class Leaderboard (Admin only)
+router.get(
+  "/class-summary/:semesterId",
+  verifyUser,
+  verifyRole(["admin"]),
+  getClassReportCardSummary,
+);
+
+// Individual Student Report Card (Admins & Students)
 router.get(
   "/student/:studentId/semester/:semesterId",
   verifyUser,
