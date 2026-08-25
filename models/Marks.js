@@ -22,6 +22,11 @@ const markSchema = new mongoose.Schema(
       ref: "ExamSession",
       required: true,
     },
+    semesterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Semester",
+      required: true,
+    },
     score: {
       type: Number,
       required: true,
@@ -36,16 +41,16 @@ const markSchema = new mongoose.Schema(
     },
     enteredBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee", // Lecturer who submitted or updated the score
+      ref: "Employee",
       required: true,
     },
   },
   { timestamps: true },
 );
 
-// Ensures a student only gets one mark per subject per exam session
+// Ensures a student gets one mark per subject per exam session per semester
 markSchema.index(
-  { studentId: 1, subjectId: 1, examSessionId: 1 },
+  { studentId: 1, subjectId: 1, examSessionId: 1, semesterId: 1 },
   { unique: true },
 );
 

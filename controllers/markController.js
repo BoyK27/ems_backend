@@ -22,10 +22,19 @@ const submitOrUpdateMarks = async (req, res) => {
     }
 
     const bulkOps = marks.map((item) => {
+      if (
+        !item.semesterId ||
+        !mongoose.Types.ObjectId.isValid(item.semesterId)
+      ) {
+        throw new Error(
+          `Invalid or missing semesterId for student ${item.studentId}`,
+        );
+      }
+
       const studentObjId = new mongoose.Types.ObjectId(item.studentId);
       const subjectObjId = new mongoose.Types.ObjectId(item.subjectId);
       const sessionObjId = new mongoose.Types.ObjectId(item.examSessionId);
-      const semesterObjId = new mongoose.Types.ObjectId(item.semesterId); // 👈 Added
+      const semesterObjId = new mongoose.Types.ObjectId(item.semesterId);
       const classObjId = new mongoose.Types.ObjectId(item.classId);
 
       return {
@@ -34,7 +43,7 @@ const submitOrUpdateMarks = async (req, res) => {
             studentId: studentObjId,
             subjectId: subjectObjId,
             examSessionId: sessionObjId,
-            semesterId: semesterObjId, // 👈 Match by semester as well
+            semesterId: semesterObjId,
           },
           update: {
             $set: {
@@ -55,9 +64,10 @@ const submitOrUpdateMarks = async (req, res) => {
       .json({ success: true, message: "Marks saved successfully" });
   } catch (error) {
     console.error("Error saving marks:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Server error updating marks" });
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Server error updating marks",
+    });
   }
 };
 
