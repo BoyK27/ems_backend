@@ -17,13 +17,11 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
   const semester = await Semester.findById(semesterId);
   if (!semester) throw new Error("Semester not found");
 
-  // Determine active class filter priority (query parameter OR semester classId)
   const activeClassId = targetClassId || semester.classId;
 
-  // Build query for students
   const studentQuery = {};
   if (activeClassId) {
-    studentQuery.$or = [{ classId: activeClassId }, { class: activeClassId }];
+    studentQuery.classId = activeClassId;
   }
 
   const classStudents = await Student.find(studentQuery).populate(
@@ -31,20 +29,19 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
     "name",
   );
 
-  // Fetch semester marks
   const semesterMarks = await Mark.find({ semesterId }).populate(
     "subjectId examSessionId studentId",
   );
 
-  // Map students to subjects & session marks
   const studentMap = {};
 
   classStudents.forEach((st) => {
     const sId = st._id.toString();
     studentMap[sId] = {
       studentId: st._id,
-      name: st.userId?.name || st.name || "Unknown Student",
-      registrationNumber: st.registrationNumber || "N/A",
+      userId: st.userId?._id || st.userId,
+      name: st.userId?.name || "Unknown Student",
+      registrationNumber: st.studentId || "N/A",
       subjects: {},
     };
   });
@@ -52,17 +49,16 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
   semesterMarks.forEach((mark) => {
     if (!mark.studentId || !mark.subjectId) return;
 
-    // Handle populated vs unpopulated student ID references
     const rawStudentId = mark.studentId._id
       ? mark.studentId._id.toString()
       : mark.studentId.toString();
 
-    // Dynamically insert student if mark exists but student wasn't pre-loaded
     if (!studentMap[rawStudentId]) {
       studentMap[rawStudentId] = {
         studentId: rawStudentId,
+        userId: mark.studentId.userId?._id || mark.studentId.userId,
         name: mark.studentId.name || mark.studentId.userId?.name || "Student",
-        registrationNumber: mark.studentId.registrationNumber || "N/A",
+        registrationNumber: mark.studentId.studentId || "N/A",
         subjects: {},
       };
     }
@@ -81,7 +77,6 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
       };
     }
 
-    // Find session weight configured in semester with complete null checks
     let weight = 0;
     if (
       semester.sessions &&
@@ -107,10 +102,7 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
 
     const outOf = mark.outOf || mark.maxScore || 20;
     const rawScore = mark.score || mark.mark || 0;
-
-    // Normalize score to /20 basis
     const normalizedScore = outOf > 0 ? (rawScore / outOf) * 20 : 0;
-
     const sessionName =
       mark.examSessionId?.sessionName || mark.sessionName || "Assessment";
 
@@ -123,7 +115,6 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
     });
   });
 
-  // Calculate final subject marks and overall averages
   const leaderboard = Object.values(studentMap).map((st) => {
     let totalSubjectMarks = 0;
     let subjectCount = 0;
@@ -139,7 +130,6 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
         }
       });
 
-      // Handle unweighted or equal split fallback
       const finalSubjectMark =
         totalWeightApplied > 0
           ? weightedMark * (100 / totalWeightApplied)
@@ -166,6 +156,7 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
 
     return {
       studentId: st.studentId,
+      userId: st.userId,
       name: st.name,
       registrationNumber: st.registrationNumber,
       subjects: compiledSubjects,
@@ -174,7 +165,6 @@ const computeClassLeaderboard = async (semesterId, targetClassId = null) => {
     };
   });
 
-  // Sort descending by overall average to assign ranks
   leaderboard.sort((a, b) => b.overallAverage - a.overallAverage);
 
   const totalStudents = leaderboard.length;
@@ -198,17 +188,33 @@ export const getSemesterReportCard = async (req, res) => {
         .json({ success: false, error: "Semester not found" });
     }
 
-    if (req.user?.role === "student" && !semester.isReportCardPublished) {
-      return res.status(403).json({
-        success: false,
-        error:
-          "Semester report cards have not been published by the administration yet.",
-      });
+    if (req.user?.role === "student") {
+      if (!semester.isReportCardPublished) {
+        return res.status(403).json({
+          success: false,
+          error:
+            "Semester report cards have not been published by administration yet.",
+        });
+      }
+
+      const studentDoc = await Student.findOne({ userId: req.user._id });
+      if (
+        studentDoc &&
+        studentDoc._id.toString() !== studentId &&
+        req.user._id.toString() !== studentId
+      ) {
+        return res.status(403).json({
+          success: false,
+          error: "Unauthorized access to requested report card.",
+        });
+      }
     }
 
     const leaderboard = await computeClassLeaderboard(semesterId);
     const studentReport = leaderboard.find(
-      (s) => s.studentId && s.studentId.toString() === studentId,
+      (s) =>
+        (s.studentId && s.studentId.toString() === studentId) ||
+        (s.userId && s.userId.toString() === studentId),
     );
 
     if (!studentReport) {
