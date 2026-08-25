@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import Subject from "../models/Subject.js";
+import User from "../models/User.js";
 
 // Add a new subject
 const addSubject = async (req, res) => {
@@ -155,29 +157,51 @@ const deleteSubject = async (req, res) => {
   }
 };
 
-// Get subjects assigned to the logged-in teacher for a specific class
+// Get subjects assigned to the logged-in user for a specific class
 const getTeacherAssignedSubjects = async (req, res) => {
   try {
     const { classId } = req.params;
-    const userId = req.user._id; // Extracted from authMiddleware
+    const userId = req.user?._id || req.user?.id;
 
-    // Find the Teacher record linked to this User
-    const teacher = await Teacher.findOne({ userId });
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Unauthorized user" });
+    }
 
-    // Fallback: If no dedicated Teacher record exists (e.g., Admin testing), return all class subjects
-    if (!teacher) {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // 1. If user is Admin, return all subjects registered under this class
+    if (user.role === "admin") {
       const allSubjects = await Subject.find({ classId }).sort({
         subjectName: 1,
       });
       return res.status(200).json({ success: true, subjects: allSubjects });
     }
 
-    // Fetch subjects matching classId that are present in teacher's assigned subjects list
-    // (Adjust the field names below based on your Teacher schema structure)
+    // 2. Fetch subjects for this class filtered by the teacher's ID (if stored on Subject model)
+    //    Or return all subjects for the class if teacher assignment is handled at class level
     const subjects = await Subject.find({
-      _id: { $in: teacher.assignedSubjects || teacher.subjects },
       classId,
+      $or: [
+        { teacherId: userId },
+        { teacher: userId },
+        { assignedTeacher: userId },
+      ],
     }).sort({ subjectName: 1 });
+
+    // Fallback: If no specific teacher field is found on Subject documents, return all subjects for the selected class
+    if (subjects.length === 0) {
+      const fallbackSubjects = await Subject.find({ classId }).sort({
+        subjectName: 1,
+      });
+      return res
+        .status(200)
+        .json({ success: true, subjects: fallbackSubjects });
+    }
 
     return res.status(200).json({ success: true, subjects });
   } catch (error) {
