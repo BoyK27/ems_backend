@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import mongoose from "mongoose"; // FIX 1: Import mongoose
+import mongoose from "mongoose";
 import connectToDatabase from "./db/db.js";
 
 // Routes imports...
@@ -23,7 +23,7 @@ import subjectRouter from "./routes/subjects.js";
 import examSessionRouter from "./routes/examSession.js";
 import markRouter from "./routes/mark.js";
 import reportCardRouter from "./routes/reportCard.js";
-import semesterRouter from "./routes/semesterRoute.js"; // dded Semester Route Import
+import semesterRouter from "./routes/semesterRoute.js";
 
 import Subject from "./models/Subject.js";
 
@@ -31,11 +31,20 @@ dotenv.config();
 
 const app = express();
 
+// Disable ETags to prevent Vercel 304 cache hits
+app.set("etag", false);
+
 app.use(
   cors({
     origin: ["https://m-ochard.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Cache-Control",
+      "Pragma",
+      "Expires",
+    ],
     credentials: true,
   }),
 );
@@ -43,12 +52,23 @@ app.use(
 app.use(express.json());
 app.use(express.static("public/uploads"));
 
+// Middleware to set Anti-Caching Headers globally
+app.use((req, res, next) => {
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate",
+  );
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
+  next();
+});
+
 // Middleware to guarantee DB connection per serverless request
 app.use(async (req, res, next) => {
   try {
     await connectToDatabase();
 
-    //  FIX 2: Safely drop stale index once database connection is confirmed
     if (mongoose.connection.readyState === 1) {
       Subject.collection
         .dropIndex("subjectCode_1")
@@ -56,7 +76,6 @@ app.use(async (req, res, next) => {
           console.log("Successfully dropped stale subjectCode_1 index!"),
         )
         .catch((err) => {
-          // Ignore error if index is already dropped
           if (err.code !== 27) {
             console.log("Index status:", err.message);
           }
@@ -90,7 +109,7 @@ app.use("/api/report-card", reportCardRouter);
 app.use("/api/class", classRouter);
 app.use("/api/subject", subjectRouter);
 app.use("/api/exam-session", examSessionRouter);
-app.use("/api/semester", semesterRouter); // 👈 Registered Semester Endpoint
+app.use("/api/semester", semesterRouter);
 app.use("/api/mark", markRouter);
 
 export default app;
