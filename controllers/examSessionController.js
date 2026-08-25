@@ -39,9 +39,12 @@ const getExamSessions = async (req, res) => {
     const { semesterId } = req.query;
     const query = {};
 
-    // Filter by semester if provided and not "all"
-    if (semesterId && semesterId !== "all") {
-      query.semesterId = semesterId;
+    if (
+      semesterId &&
+      semesterId !== "all" &&
+      mongoose.Types.ObjectId.isValid(semesterId)
+    ) {
+      query.semesterId = new mongoose.Types.ObjectId(semesterId);
     }
 
     const sessions = await ExamSession.find(query)
