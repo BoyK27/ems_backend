@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Mark from "../models/Marks.js";
 import Student from "../models/Student.js";
 import Employee from "../models/Employee.js";
+import Semester from "../models/Semester.js";
+import ExamSession from "../models/ExamSessions.js";
 
 // 1. Submit or Edit batch marks (Lecturers)
 const submitOrUpdateMarks = async (req, res) => {
@@ -74,7 +76,7 @@ const submitOrUpdateMarks = async (req, res) => {
 // 2. Get existing marks for a class, subject & session (Lecturer Grid)
 const getMarksByClassAndSubject = async (req, res) => {
   try {
-    const { classId, subjectId, examSessionId, semesterId } = req.query; // 👈 Accept semesterId
+    const { classId, subjectId, examSessionId, semesterId } = req.query;
 
     if (!classId || !subjectId || !examSessionId || !semesterId) {
       return res.status(400).json({
@@ -92,7 +94,7 @@ const getMarksByClassAndSubject = async (req, res) => {
       classId: classObjId,
       subjectId: subjectObjId,
       examSessionId: sessionObjId,
-      semesterId: semesterObjId, // 👈 Query including semesterId
+      semesterId: semesterObjId,
     });
 
     const outOf = marks.length > 0 && marks[0].outOf ? marks[0].outOf : 20;
@@ -116,7 +118,7 @@ const getMarksByClassAndSubject = async (req, res) => {
 const getStudentMarks = async (req, res) => {
   try {
     const { studentId, examSessionId } = req.params;
-    const { semesterId } = req.query; // 👈 Read semesterId from query params
+    const { semesterId } = req.query;
 
     // 1. Find Student profile by _id OR userId
     let student = null;
@@ -142,6 +144,7 @@ const getStudentMarks = async (req, res) => {
     // 2. Build Query Filter
     const filter = { studentId: student._id };
 
+    // Handle session filtering
     if (
       examSessionId &&
       examSessionId !== "all" &&
@@ -150,29 +153,57 @@ const getStudentMarks = async (req, res) => {
       filter.examSessionId = new mongoose.Types.ObjectId(examSessionId);
     }
 
+    // Handle semester filtering across direct foreign key and embedded array references
     if (
       semesterId &&
       semesterId !== "all" &&
       mongoose.Types.ObjectId.isValid(semesterId)
     ) {
-      filter.semesterId = new mongoose.Types.ObjectId(semesterId); // 👈 Add semester filter
+      const semObjId = new mongoose.Types.ObjectId(semesterId);
+
+      // Find sessions attached to this semester array
+      const semesterDoc = await Semester.findById(semObjId)
+        .select("sessions")
+        .lean();
+      const embeddedSessionIds = (semesterDoc?.sessions || [])
+        .map((s) => s.sessionId)
+        .filter(Boolean);
+
+      // Find sessions directly referencing this semesterId
+      const directSessions = await ExamSession.find({ semesterId: semObjId })
+        .select("_id")
+        .lean();
+      const directSessionIds = directSessions.map((s) => s._id);
+
+      const allSemesterSessionIds = [
+        ...new Set([
+          ...embeddedSessionIds.map((id) => id.toString()),
+          ...directSessionIds.map((id) => id.toString()),
+        ]),
+      ].map((id) => new mongoose.Types.ObjectId(id));
+
+      filter.$or = [
+        { semesterId: semObjId },
+        { examSessionId: { $in: allSemesterSessionIds } },
+      ];
     }
 
     // 3. Fetch marks and populate references
     const rawMarks = await Mark.find(filter)
-      .populate("subjectId", "name subjectName code subjectCode")
+      .populate("subjectId", "name subjectName code subjectCode credits")
       .populate("examSessionId", "sessionName isPublished")
-      .populate("semesterId", "name semesterName"); // 👈 Populate Semester
+      .populate("semesterId", "name semesterName")
+      .lean();
 
     // 4. Safe Filter: Include marks where session is explicitly published OR undefined
     const publishedMarks = rawMarks.filter((m) => {
-      if (!m.examSessionId) return false;
+      if (!m.examSessionId) return true; // Include legacy marks without session populated
       return m.examSessionId.isPublished !== false;
     });
 
     // 5. Calculate Metrics
     const totalScore = publishedMarks.reduce(
-      (acc, curr) => acc + curr.score,
+      (acc, curr) => acc + (curr.score || 0),
       0,
     );
     const totalPossible = publishedMarks.reduce(
