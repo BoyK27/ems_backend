@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Leave from "../models/Leave.js";
 import Employee from "../models/Employee.js";
 
@@ -37,46 +38,41 @@ const getLeave = async (req, res) => {
   try {
     const { id, role } = req.params;
 
-    // 1. Check if ID is literally missing, null, or the string "undefined"
     if (!id || id === "undefined" || id === "null") {
-      return res.status(200).json({ success: true, leaves: [] });
-    }
-
-    let leaves = [];
-
-    if (role === "admin") {
-      // Validate ObjectId format if searching by ID directly
-      let employee = null;
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        employee = await Employee.findById(id);
-      }
-      if (!employee) {
-        employee = await Employee.findOne({ userId: id });
-      }
-
-      const employeeIdToQuery = employee ? employee._id : id;
-
-      if (mongoose.Types.ObjectId.isValid(employeeIdToQuery)) {
-        leaves = await Leave.find({ employeeId: employeeIdToQuery }).sort({
-          createdAt: -1,
-        });
-      }
-    } else {
-      const employee = await Employee.findOne({ userId: id });
-      if (!employee) {
-        return res.status(200).json({ success: true, leaves: [] });
-      }
-      leaves = await Leave.find({ employeeId: employee._id }).sort({
-        createdAt: -1,
+      return res.status(400).json({
+        success: false,
+        error: "Employee ID is required",
       });
     }
 
+    let employee;
+
+    if (role === "admin") {
+      employee = mongoose.Types.ObjectId.isValid(id)
+        ? await Employee.findById(id)
+        : await Employee.findOne({ userId: id });
+    } else {
+      employee = await Employee.findOne({ userId: id });
+    }
+
+    if (!employee) {
+      return res.status(200).json({
+        success: true,
+        leaves: [],
+      });
+    }
+
+    const leaves = await Leave.find({ employeeId: employee._id }).sort({
+      createdAt: -1,
+    });
+
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
-    console.error("Error fetching single leave:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Couldn't find leave records" });
+    console.error("Error fetching employee leaves:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Could not find leave records",
+    });
   }
 };
 
