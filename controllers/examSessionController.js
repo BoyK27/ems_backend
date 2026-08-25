@@ -14,7 +14,6 @@ const addExamSession = async (req, res) => {
     });
     await newSession.save();
 
-    // Optionally push this sessionId into the Semester's sessions array
     if (semesterId) {
       await Semester.findByIdAndUpdate(semesterId, {
         $push: { sessions: { sessionId: newSession._id, weight: 100 } },
@@ -50,10 +49,12 @@ const getExamSessions = async (req, res) => {
 
     const sessions = await ExamSession.find(query)
       .populate("semesterId", "name academicYear")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({ success: true, sessions });
   } catch (error) {
+    console.error("Error fetching exam sessions:", error);
     return res
       .status(500)
       .json({ success: false, error: "Server error fetching exam sessions" });
@@ -66,11 +67,13 @@ const getExamSessionsBySemester = async (req, res) => {
     const { semesterId } = req.params;
     const query = semesterId !== "all" ? { semesterId } : {};
 
-    const sessions = await ExamSession.find(query).sort({
-      createdAt: -1,
-    });
+    const sessions = await ExamSession.find(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
     return res.status(200).json({ success: true, sessions });
   } catch (error) {
+    console.error("Error fetching sessions by semester:", error);
     return res.status(500).json({
       success: false,
       error: "Server error fetching sessions by semester",
@@ -99,6 +102,7 @@ const togglePublishStatus = async (req, res) => {
       session,
     });
   } catch (error) {
+    console.error("Error toggling publish status:", error);
     return res.status(500).json({
       success: false,
       error: "Server error updating publication status",
@@ -111,7 +115,6 @@ const deleteExamSession = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Remove session reference from Semester schema if linked
     const session = await ExamSession.findById(id);
     if (session?.semesterId) {
       await Semester.findByIdAndUpdate(session.semesterId, {
@@ -124,6 +127,7 @@ const deleteExamSession = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Exam session deleted successfully" });
   } catch (error) {
+    console.error("Error deleting exam session:", error);
     return res
       .status(500)
       .json({ success: false, error: "Server error deleting exam session" });

@@ -27,21 +27,24 @@ const createSemester = async (req, res) => {
       semester,
     });
   } catch (error) {
+    console.error("Error creating semester:", error);
     return res
       .status(500)
       .json({ success: false, error: "Server error creating semester" });
   }
 };
 
-// Get ALL semesters (Fixes the GET /api/semester 404 error)
+// Get ALL semesters
 const getAllSemesters = async (req, res) => {
   try {
     const semesters = await Semester.find()
       .populate("sessions.sessionId")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({ success: true, semesters });
   } catch (error) {
+    console.error("Error fetching all semesters:", error);
     return res
       .status(500)
       .json({ success: false, error: "Server error fetching all semesters" });
@@ -54,10 +57,12 @@ const getSemestersByClass = async (req, res) => {
     const { classId } = req.params;
     const semesters = await Semester.find({ classId })
       .populate("sessions.sessionId")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({ success: true, semesters });
   } catch (error) {
+    console.error("Error fetching semesters by class:", error);
     return res
       .status(500)
       .json({ success: false, error: "Server error fetching semesters" });
