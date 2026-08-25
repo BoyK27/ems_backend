@@ -1,39 +1,68 @@
 import mongoose from "mongoose";
 import Leave from "../models/Leave.js";
 import Employee from "../models/Employee.js";
+import Student from "../models/Student.js"; // Import Student model if applicable
 
+// --- Helper to resolve profile document (Employee or Student) ---
+const resolveProfile = async (userId, role) => {
+  const normalizedRole = (role || "").toLowerCase();
+
+  if (normalizedRole === "student") {
+    let student = await Student.findOne({ userId });
+    if (!student && mongoose.Types.ObjectId.isValid(userId)) {
+      student = await Student.findById(userId);
+    }
+    return { profile: student, type: "student" };
+  }
+
+  // Default to Employee lookup
+  let employee = await Employee.findOne({ userId });
+  if (!employee && mongoose.Types.ObjectId.isValid(userId)) {
+    employee = await Employee.findById(userId);
+  }
+  return { profile: employee, type: "employee" };
+};
+
+// 1. ADD LEAVE
 const addLeave = async (req, res) => {
   try {
-    const { userId, leaveType, startDate, endDate, reason } = req.body;
-    const employee = await Employee.findOne({ userId });
+    const { userId, role, leaveType, startDate, endDate, reason } = req.body;
 
-    if (!employee) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Employee profile not found" });
+    const { profile, type } = await resolveProfile(userId, role);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: `${type === "student" ? "Student" : "Employee"} profile not found`,
+      });
     }
 
-    const newLeave = new Leave({
-      employeeId: employee._id,
+    const leaveData = {
       leaveType,
       startDate,
       endDate,
       reason,
-    });
+      employeeId: type === "employee" ? profile._id : null,
+      studentId: type === "student" ? profile._id : null,
+    };
 
+    const newLeave = new Leave(leaveData);
     await newLeave.save();
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Leave requested successfully" });
+    return res.status(200).json({
+      success: true,
+      message: "Leave requested successfully",
+    });
   } catch (error) {
     console.error("Error adding leave:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Leave add server error" });
+    return res.status(500).json({
+      success: false,
+      error: "Leave add server error",
+    });
   }
 };
 
+// 2. GET LEAVE (BY INDIVIDUAL USER)
 const getLeave = async (req, res) => {
   try {
     const { id, role } = req.params;
@@ -41,34 +70,39 @@ const getLeave = async (req, res) => {
     if (!id || id === "undefined" || id === "null") {
       return res.status(400).json({
         success: false,
-        error: "Employee ID is required",
+        error: "User ID is required",
       });
     }
 
-    let employee;
+    const normalizedRole = (role || "").toLowerCase();
 
-    if (role === "admin") {
-      employee = mongoose.Types.ObjectId.isValid(id)
-        ? await Employee.findById(id)
-        : await Employee.findOne({ userId: id });
-    } else {
-      employee = await Employee.findOne({ userId: id });
+    // If Admin, query leaves directly using id as an ObjectId
+    if (normalizedRole === "admin") {
+      const leaves = await Leave.find({
+        $or: [{ employeeId: id }, { studentId: id }],
+      }).sort({ createdAt: -1 });
+
+      return res.status(200).json({ success: true, leaves });
     }
 
-    if (!employee) {
+    // Resolve profile for Employee or Student
+    const { profile, type } = await resolveProfile(id, normalizedRole);
+
+    if (!profile) {
       return res.status(200).json({
         success: true,
         leaves: [],
       });
     }
 
-    const leaves = await Leave.find({ employeeId: employee._id }).sort({
+    const queryKey = type === "student" ? "studentId" : "employeeId";
+    const leaves = await Leave.find({ [queryKey]: profile._id }).sort({
       createdAt: -1,
     });
 
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
-    console.error("Error fetching employee leaves:", error);
+    console.error("Error fetching leaves:", error);
     return res.status(500).json({
       success: false,
       error: "Could not find leave records",
@@ -76,6 +110,7 @@ const getLeave = async (req, res) => {
   }
 };
 
+// 3. GET ALL LEAVES (ADMIN VIEW)
 const getLeaves = async (req, res) => {
   try {
     const leaves = await Leave.find()
@@ -86,42 +121,57 @@ const getLeaves = async (req, res) => {
           { path: "department", select: "dep_name" },
           { path: "userId", select: "name" },
         ],
+      })
+      .populate({
+        path: "studentId",
+        populate: [{ path: "userId", select: "name" }],
       });
+
     return res.status(200).json({ success: true, leaves });
   } catch (error) {
     console.error("Error fetching leaves list:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Couldn't find leaves" });
+    return res.status(500).json({
+      success: false,
+      error: "Couldn't find leaves",
+    });
   }
 };
 
+// 4. GET SINGLE LEAVE DETAIL
 const getLeaveDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    const leave = await Leave.findById(id).populate({
-      path: "employeeId",
-      populate: [
-        { path: "department", select: "dep_name" },
-        { path: "userId", select: "name profileImage" },
-      ],
-    });
+    const leave = await Leave.findById(id)
+      .populate({
+        path: "employeeId",
+        populate: [
+          { path: "department", select: "dep_name" },
+          { path: "userId", select: "name profileImage" },
+        ],
+      })
+      .populate({
+        path: "studentId",
+        populate: [{ path: "userId", select: "name profileImage" }],
+      });
 
     if (!leave) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Leave detail not found" });
+      return res.status(404).json({
+        success: false,
+        error: "Leave detail not found",
+      });
     }
 
     return res.status(200).json({ success: true, leave });
   } catch (error) {
     console.error("Error fetching leave details:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Couldn't find leave detail" });
+    return res.status(500).json({
+      success: false,
+      error: "Couldn't find leave detail",
+    });
   }
 };
 
+// 5. UPDATE LEAVE STATUS
 const updateLeave = async (req, res) => {
   try {
     const { id } = req.params;
@@ -130,15 +180,21 @@ const updateLeave = async (req, res) => {
       { status: req.body.status },
       { new: true },
     );
+
     if (!leave) {
-      return res.status(404).json({ success: false, error: "Leave not found" });
+      return res.status(404).json({
+        success: false,
+        error: "Leave record not found",
+      });
     }
+
     return res.status(200).json({ success: true, leave });
   } catch (error) {
     console.error("Error updating leave:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Couldn't update Leave" });
+    return res.status(500).json({
+      success: false,
+      error: "Couldn't update Leave",
+    });
   }
 };
 
