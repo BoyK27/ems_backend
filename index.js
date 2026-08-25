@@ -23,7 +23,7 @@ import subjectRouter from "./routes/subjects.js";
 import examSessionRouter from "./routes/examSession.js";
 import markRouter from "./routes/mark.js";
 import reportCardRouter from "./routes/reportCard.js";
-import semesterRouter from "./routes/semester.js"; // dded Semester Route Import
+import semesterRouter from "./routes/semesterRoute.js"; // dded Semester Route Import
 
 import Subject from "./models/Subject.js";
 
