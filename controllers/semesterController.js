@@ -33,6 +33,21 @@ const createSemester = async (req, res) => {
   }
 };
 
+// Get ALL semesters (Fixes the GET /api/semester 404 error)
+const getAllSemesters = async (req, res) => {
+  try {
+    const semesters = await Semester.find()
+      .populate("sessions.sessionId")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, semesters });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, error: "Server error fetching all semesters" });
+  }
+};
+
 // Get semesters by Class ID
 const getSemestersByClass = async (req, res) => {
   try {
@@ -49,4 +64,4 @@ const getSemestersByClass = async (req, res) => {
   }
 };
 
-export { createSemester, getSemestersByClass };
+export { createSemester, getAllSemesters, getSemestersByClass };
